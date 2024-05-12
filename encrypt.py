@@ -109,8 +109,10 @@ if __name__ == "__main__":
         if args.seed_file == None or args.out_file == None:
             print("Missing mandatory encryption flags -s or -o.")
             exit()
-        password = getpass()
-        password2 = getpass() 
+        # password = getpass()
+        # password2 = getpass()
+        password = input("Password: ") # My Modification so that input is visible.
+        password2 = input("Password: ") # My Modification so that input is visible.
         if password != password2:
             print("Passwords did not match")
         else:
@@ -125,7 +127,8 @@ if __name__ == "__main__":
         if args.ciphertext_file == None or args.out_file == None:
             print("Missing mandatory decryption flags -c or -o.")
             exit()
-        password = getpass()
+        # password = getpass()
+        password = input("Password: ") # My Modification so that input is visible.
         if readHP(password): # My Modification. If it is a honey Password continue and print false text, or if Password print real text.
             salt, iv, ciphertext = read_ciphertext(args.ciphertext_file)
             key, salt = derive_key(password, salt)
@@ -141,12 +144,12 @@ if __name__ == "__main__":
         S ¬$ encode(M) 
         R ¬$ {0, 1}n  
         S‟ ¬ H (R, K)  
-        C ¬ S‟⊕ S  
+        C ¬ S‟⊕ S   
         return (R, C) 
 
     HDec (K, (R, C)) 
-        S‟¬ H (R, K)  
-        S ¬ C ⊕ S‟  
+        S‟¬ H (R, K)   
+        S ¬ C ⊕ S‟   
         M ¬ decode(S) 
         return M 
         
@@ -180,8 +183,8 @@ if __name__ == "__main__":
     
     Possible SOPS:
         1. Construct Good OPP DTE encoder, and storage space and method.
+            1.1 Encoding method for Messages.
         2. Construct good honey password generation.
-        3. Encoding method for Messages.
         
     Algorithm:
     This simulator slightly modifies the original algorithm (No XOR but uses AES), but the idea is the same.
