@@ -112,7 +112,7 @@ if __name__ == "__main__":
         # password = getpass()
         # password2 = getpass()
         password = input("Password: ") # My Modification so that input is visible.
-        password2 = input("Password: ") # My Modification so that input is visible.
+        password2 = input("Confirm Password: ") # My Modification so that input is visible.
         if password != password2:
             print("Passwords did not match")
         else:

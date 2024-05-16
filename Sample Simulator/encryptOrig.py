@@ -1,0 +1,147 @@
+# Encrypt: python "Sample Simulator/encryptOrig.py" -e -s test_seedOrig.txt -o ciphertextOrig.txt -f "Sample Simulator" 
+# Decrypt: python "Sample Simulator/encryptOrig.py" -d -c ciphertextOrig.txt -o plaintextOrig.txt -f "Sample Simulator" 
+
+# This simulator closely follows the algorithm.
+
+import argparse
+import hashlib
+import base64
+import json
+import os
+from Crypto import Random
+from wordlistOrig import *
+
+honeypasswords = []
+
+def generateWriteHP(password, subfolder):
+    honeypasswords.append("5" + password.upper())
+    honeypasswords.append(password + "123")
+    honeypasswords.append(password.lower() + "4")
+    honeypasswords.append(password + password[-1])
+    honeypasswords.append(password)
+
+    with open(os.path.join(subfolder, "HoneypasswordOrig.txt"), "w") as out_file:
+        out_file.write(json.dumps(honeypasswords))
+
+def readHP(password, subfolder):
+    with open(os.path.join(subfolder, "HoneypasswordOrig.txt"), "r") as read_file:
+        honeypasswords = json.load(read_file)
+    return password in honeypasswords
+
+def dte_encode(seed_file):
+    plaintext = []
+    with open(seed_file) as seed:
+        for word in seed:
+            word = word.strip()
+            index = wordlist.index(word)
+            byte_value = int_to_bytes(index, 2) 
+            plaintext.append(byte_value)
+    return b"".join(plaintext)
+
+def dte_decode(text):
+    words = []
+    byte_numbers = [text[i:i+2] for i in range(0, len(text), 2)] 
+    for byte_number in byte_numbers:
+        index = int_from_bytes(byte_number) % 2048
+        words.append(wordlist[index])
+    return words
+
+def encrypt(dte, key):
+    ciphertext = xor_bytes(dte, key)
+    return ciphertext
+
+def decrypt(ciphertext, key):
+    plaintext = xor_bytes(ciphertext, key)
+    return plaintext
+
+def derive_key(password, salt=Random.new().read(16)):
+    hasher = hashlib.sha256()
+    hasher.update(password.encode("utf8") + salt)
+    key = hasher.digest()
+    return key, salt
+
+def write_ciphertext(salt, ciphertext, filename):
+    with open(filename, "w") as out_file:
+        out_file.write(json.dumps({
+            "salt": base64.b64encode(salt).decode("utf8"),
+            "ciphertext": base64.b64encode(ciphertext).decode("utf8")
+        }))
+
+def write_plaintext(plaintext, filename):
+    with open(filename, "w") as out_file:
+        for word in plaintext:
+            out_file.write(word + "\n")
+
+def read_ciphertext(filename):
+    with open(filename) as in_file:
+        data = json.load(in_file)
+        return base64.b64decode(data["salt"]), base64.b64decode(data["ciphertext"])
+
+def int_to_bytes(x: int, num_bytes) -> bytes:
+    return x.to_bytes(num_bytes, "big")
+
+def int_from_bytes(xbytes: bytes) -> int:
+    return int.from_bytes(xbytes, "big")
+
+def xor_bytes(bytes1, bytes2):
+    return bytes(a ^ b for a, b in zip(bytes1, bytes2))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("-s", dest="seed_file", type=str, help="BIP039 seed file")
+    parser.add_argument("-c", dest="ciphertext_file", type=str, help="Encrypted BIP039 seed file")
+    parser.add_argument("-o", dest="out_file", type=str, help="Output file")
+    parser.add_argument("-d", action="store_true", default=False, help="Decrypt")
+    parser.add_argument("-e", action="store_true", default=False, help="Encrypt")
+    parser.add_argument("-f", dest="subfolder", type=str, default="subfolder", help="Subfolder for files")
+
+    args = parser.parse_args()
+
+    subfolder = args.subfolder
+
+    if args.d == args.e:
+        print("Encrypt (-e) or decrypt (-d)")
+    elif args.e:
+        if args.seed_file is None or args.out_file is None:
+            print("Missing mandatory encryption flags -s or -o.")
+            exit()
+        password = input("Password: ")
+        password2 = input("Confirm Password: ")
+        if password != password2:
+            print("Passwords did not match")
+        else:
+            generateWriteHP(password, subfolder)
+            key, salt = derive_key(password)
+            dte = dte_encode(os.path.join(subfolder, args.seed_file))
+            ciphertext = encrypt(dte, key)
+            write_ciphertext(salt, ciphertext, os.path.join(subfolder, args.out_file))
+            print("Ciphertext written to", args.out_file)
+    elif args.d:
+        if args.ciphertext_file is None or args.out_file is None:
+            print("Missing mandatory decryption flags -c or -o.")
+            exit()
+        password = input("Password: ")
+        if readHP(password, subfolder):
+            salt, ciphertext = read_ciphertext(os.path.join(subfolder, args.ciphertext_file))
+            key, _ = derive_key(password, salt)
+            plaintext = decrypt(ciphertext, key)
+            dte = dte_decode(plaintext)
+            write_plaintext(dte, os.path.join(subfolder, args.out_file))
+            print("Plaintext written to", args.out_file)
+        else:
+            print("Incorrect Password")
+
+    """
+    HEnc (K, M)  
+        S ¬$ encode(M) 
+        R ¬$ {0, 1}n  
+        S‟ ¬ H (R, K)  
+        C ¬ S‟⊕ S   
+        return (R, C) 
+
+    HDec (K, (R, C)) 
+        S‟¬ H (R, K)   
+        S ¬ C ⊕ S‟   
+        M ¬ decode(S) 
+        return M    
+    """
