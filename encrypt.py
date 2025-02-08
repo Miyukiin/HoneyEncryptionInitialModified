@@ -11,7 +11,7 @@ from getpass import getpass
 from Crypto.Cipher import AES
 from hashlib import sha256 # Probably used by implementer in a previous different interpretation of the algorithm.
 from Crypto import Random
-from wordlist import *
+from Resources.wordlist import *
 
 honeypasswords = [] # My Modification
 
@@ -23,11 +23,11 @@ def generateWriteHP(password):
     honeypasswords.append(password + password[-1])
     honeypasswords.append(password)
     
-    with open("Honeypassword.txt", "w") as out_file:
+    with open("Output/HoneyPasswordList.txt", "w") as out_file:
         out_file.write(json.dumps(honeypasswords))
         
 def readHP(password):
-    with open("Honeypassword.txt", "r") as read_file:
+    with open("Output/HoneyPasswordList.txt", "r") as read_file:
         honeypasswords = json.load(read_file)
     if password in honeypasswords:
         return True
