@@ -1,6 +1,6 @@
 # Original Unmodified Source: https://github.com/torjusbr/bip39-honey-encryption
-# Encrypt: python encrypt.py -e -s test_seed.txt -o ciphertext.txt
-# Decrypt: python encrypt.py -d -c ciphertext.txt -o plaintext.txt
+# Encrypt: python encrypt.py -e -s Resources/test_seed.txt -o Output/ciphertext.txt
+# Decrypt: python encrypt.py -d -c Output/ciphertext.txt -o Output/plaintext.txt
 
 import argparse
 import base64
