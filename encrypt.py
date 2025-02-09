@@ -35,8 +35,6 @@ def readHP(password):
 
 
 
-
-
 def dte_encode(seed_file):
     plaintext = [] 
     with open(seed_file) as seed:
@@ -45,18 +43,20 @@ def dte_encode(seed_file):
                 index = wordlist.index(word)
                 byte_value = int_to_bytes(index, 16)
                 plaintext.append(byte_value)
+                # print(byte_value) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Individually.
+    #print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
     return  b"".join(plaintext)
 
 def dte_decode(text):
     words = []
     byte_numbers = [text[i:i+16] for i in range(0, len(text), 16)]
     for byte_number in byte_numbers:
-        index = int_from_bytes(byte_number) % 2048
+        index = int_from_bytes(byte_number) % 2048 # 2048 represents the length of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
         words.append(wordlist[index]) 
     return words
 
 def encrypt(dte, key):
-    iv = Random.new().read(AES.block_size)
+    iv = Random.new().read(AES.block_size) # Initialization Value. 128 Bits -> 16 random bytes.
     obj = AES.new(key, AES.MODE_CBC, iv)
     ciphertext = obj.encrypt(dte)
     
@@ -65,16 +65,30 @@ def encrypt(dte, key):
 def decrypt(ciphertext, key, iv):
     obj = AES.new(key, AES.MODE_CBC, iv)
     plaintext = obj.decrypt(ciphertext)
-    
     return plaintext
 
-def derive_key(password, salt=Random.new().read(16)):
-    argon2id_hash = argon2.low_level.hash_secret_raw(password.encode("utf8"), salt, time_cost=2, memory_cost=102400, parallelism=8, hash_len=32, type=argon2.low_level.Type.ID)
+def derive_key(password:str, salt=Random.new().read(16)):
+    argon2id_hash = argon2.low_level.hash_secret_raw(
+        password.encode("utf8"), 
+        salt, 
+        time_cost=2, 
+        memory_cost=102400, 
+        parallelism=8, 
+        hash_len=32, 
+        type=argon2.low_level.Type.ID
+    )
     return argon2id_hash, salt
 
 def write_ciphertext(salt, ciphertext, iv, filename):
     with open(filename, "w") as out_file:
-        out_file.write(json.dumps({"salt": base64.b64encode(salt).decode("utf8"), "iv": base64.b64encode(iv).decode("utf8"), "ciphertext": base64.b64encode(ciphertext).decode("utf8")}).encode("utf8").decode("utf8"))
+        # Decodes the hexadecimal form bytes (\xNN) into Base64 String and then to corresponding UTF-8 string. Then write the json to the file.
+        out_file.write(
+            json.dumps({
+                "salt": base64.b64encode(salt).decode("utf8"), 
+                "iv": base64.b64encode(iv).decode("utf8"), 
+                "ciphertext": base64.b64encode(ciphertext).decode("utf8")
+            })
+        )
 
 def write_plaintext(plaintext, filename):
     with open(filename, "w") as out_file:
@@ -82,7 +96,6 @@ def write_plaintext(plaintext, filename):
             out_file.write(word + "\n")
 
 def read_ciphertext(filename):
-    values = []
     with open(filename) as in_file:
         data = json.load(in_file)
         return base64.b64decode(data["salt"]), base64.b64decode(data["iv"]), base64.b64decode(data["ciphertext"])
