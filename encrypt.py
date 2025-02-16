@@ -77,10 +77,10 @@ def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
 
 # Encrypt Message using RMBRSA
 def encrypt(dte:bytes):
-    bit_input = 2048  # Adjust bit length as needed. 256 bytes
-    bits = try_generating_keys.compute_bit(bit_input) # We divide the bits among the four prime numbers
+    bit_input = 256  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertxt. file
+    bits = try_generating_keys.compute_bit(bit_input) # We just floor divide the bits by 4 - among the four prime numbers
 
-    p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers
+    p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
     N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
     y, x = try_eea_mod.gcd_checker(e, PHI)
     d = try_eea_mod.generating_d(x, y, e, PHI) # We compute for the private key.
@@ -106,7 +106,7 @@ def encrypt(dte:bytes):
     dte_bytes:list[bytes] = list(dte)  # Convert the byte sequence into a list of bytes.
     encrypted_bytes:list[int] = [pow(byte, e, N) for byte in dte_bytes]  # Encrypt each byte of the list into an int, and store it in another list.
     
-    size = (N.bit_length() + 7) // 8  # Fixed byte size
+    size = (N.bit_length() + 7) // 8  # Fixed byte size, how many bytes do we need to convert bytes to int?
     ciphertext: bytes = b''.join(c.to_bytes(size, "big") for c in encrypted_bytes) # Convert all int elements in the list back into a single byte sequence.
     
     rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys}
@@ -134,7 +134,7 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     # We convert the single byte sequence into a list of integers.
     encrypted_integers = []
     i = 0
-    size = (N.bit_length() + 7) // 8  # Fixed byte size
+    size = (N.bit_length() + 7) // 8  # Fixed byte size, how many bytes do we need to convert bytes to int?
     while i < len(ciphertext):
         encrypted_int = int.from_bytes(ciphertext[i:i+size], "big")  # Convert byte back to integer. Extract fixed-size chunks
         encrypted_integers.append(encrypted_int) # List of encrypted integers
@@ -146,7 +146,7 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     )
 
     # Converts the list of integers back to a single byte sequence.
-    dte = bytes(c % 256 for c in decrypted_integers)  # Ensures values fit in byte range of 0-255, because a d_fake may produce result in decrypted_integers that are outside this range.
+    dte = bytes(c % 256 for c in decrypted_integers)  # Ensure values fit in the valid byte range of 0-255, because a d_fake may produce result in decrypted_integers that are outside this range.
 
     return dte
 
@@ -240,20 +240,24 @@ if __name__ == "__main__":
             print("Incorrect Password")
 
     """
-    HEnc (K, M)  
-        S ¬$ encode(M) 
-        R ¬$ {0, 1}n  
-        S‟ ¬ H (R, K)  
-        C ¬ S‟⊕ S   
-        return (R, C) 
+    Original Algorithm:
+        HEnc (K, M)  
+            S ¬$ encode(M) 
+            R ¬$ {0, 1}n  
+            S‟ ¬ H (R, K)  
+            C ¬ S‟⊕ S   
+            return (R, C) 
 
-    HDec (K, (R, C)) 
-        S‟¬ H (R, K)   
-        S ¬ C ⊕ S‟   
-        M ¬ decode(S) 
-        return M 
+        HDec (K, (R, C)) 
+            S‟¬ H (R, K)   
+            S ¬ C ⊕ S‟   
+            M ¬ decode(S) 
+            return M 
+    
+    Proposed Algorithm:
+    
         
-    Notes:
+    Outdated Notes as of 16/02/2025:
     1. In the original Honey Encryption algorithm described in your provided documentation, 
     there's no mention of AES (Advanced Encryption Standard) or any specific encryption mechanism. 
     Instead, it outlines the process in terms of generating random values, hashing, and performing XOR operations.
