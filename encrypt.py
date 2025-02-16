@@ -11,30 +11,36 @@ from getpass import getpass
 from Crypto.Cipher import AES
 from hashlib import sha256 # Probably used by implementer in a previous different interpretation of the algorithm.
 from Crypto import Random
-from Resources.wordlist import *
+from Resources.wordlist import wordlist
 
-honeypasswords = [] # My Modification
+from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
 
-# Simple HP Generation, My Modification for Demonstration Purposes Only.
+# Honey Password Generation
+honeypasswords = [] 
+
 def generateWriteHP(password): 
-    honeypasswords.append("5" + password.upper())
-    honeypasswords.append(password + "123")
-    honeypasswords.append(password.lower() + "4")
-    honeypasswords.append(password + password[-1])
-    honeypasswords.append(password)
+    generator = MLHoneywordGenerator()
+    honeyword_list, sugarword_index = generator.generate_honeywords(password)
+    honeypasswords = honeyword_list
     
     with open("Output/HoneyPasswordList.txt", "w") as out_file:
-        out_file.write(json.dumps(honeypasswords))
+        out_file.write(json.dumps({
+            "honeypasswords":honeypasswords, 
+            "sugarword_index": sugarword_index    
+        }))
         
 def readHP(password):
     with open("Output/HoneyPasswordList.txt", "r") as read_file:
-        honeypasswords = json.load(read_file)
+        data = json.load(read_file)
+        honeypasswords = data["honeypasswords"]
+        sugarword_index = data["sugarword_index"]
+        print(f"Honeypasswords for {password}: {honeypasswords}")
+        print(f"Sugarword Index: {sugarword_index}")
     if password in honeypasswords:
         return True
-# Simple HP Generation, My Modification for Demonstration Purposes Only.       
+    return False 
 
-
-
+# Honey DTE
 def dte_encode(seed_file):
     plaintext = [] 
     with open(seed_file) as seed:
@@ -82,13 +88,11 @@ def derive_key(password:str, salt=Random.new().read(16)):
 def write_ciphertext(salt, ciphertext, iv, filename):
     with open(filename, "w") as out_file:
         # Decodes the hexadecimal form bytes (\xNN) into Base64 String and then to corresponding UTF-8 string. Then write the json to the file.
-        out_file.write(
-            json.dumps({
-                "salt": base64.b64encode(salt).decode("utf8"), 
-                "iv": base64.b64encode(iv).decode("utf8"), 
-                "ciphertext": base64.b64encode(ciphertext).decode("utf8")
-            })
-        )
+        out_file.write(json.dumps({
+            "salt": base64.b64encode(salt).decode("utf8"), 
+            "iv": base64.b64encode(iv).decode("utf8"), 
+            "ciphertext": base64.b64encode(ciphertext).decode("utf8")
+        }))
 
 def write_plaintext(plaintext, filename):
     with open(filename, "w") as out_file:
