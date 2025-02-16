@@ -12,7 +12,7 @@ from Crypto.Cipher import AES
 from Crypto import Random
 from Resources.wordlist import wordlist
 import hashlib
-from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt
+from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_format_bitstuff, try_format_destuff, try_binary_conversion
 from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
 
 # Honey Password Generation
@@ -50,7 +50,7 @@ def dte_encode(seed_file):
                 byte_value = int_to_bytes(index, 16)
                 plaintext.append(byte_value)
                 # print(byte_value) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Individually.
-    #print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
+    # print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
     return  b"".join(plaintext)
 
 def dte_decode(text):
@@ -75,7 +75,7 @@ def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
     
     return d_fake
 
-# Encrypt Message using RMBRSA
+# Encrypt Message using RMBRSA - Debugged and Verified
 def encrypt(dte:bytes):
     bit_input = 256  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertxt. file
     bits = try_generating_keys.compute_bit(bit_input) # We just floor divide the bits by 4 - among the four prime numbers
@@ -103,17 +103,49 @@ def encrypt(dte:bytes):
         honey_keys[i] = {honeypasswords[sugarword_index]: d} # Insert sugarword with actual d private key inside honey_keys list of dictionaries.
 
 
-    dte_bytes:list[bytes] = list(dte)  # Convert the byte sequence into a list of bytes.
-    encrypted_bytes:list[int] = [pow(byte, e, N) for byte in dte_bytes]  # Encrypt each byte of the list into an int, and store it in another list.
+    dte_bytes:list[int] = list(dte)  # Convert the byte sequence into a list of int.
+    encrypted_bytes:list[int] = [pow(byte, e, N) for byte in dte_bytes]  # Encrypt each element of the list and store it in another list.
+    print("DTE: ", dte[:20])
+    print("DTE_bytes: ", dte_bytes[:20]) 
+    print("Encrypted Bytes: ", encrypted_bytes[:20]) 
     
-    size = (N.bit_length() + 7) // 8  # Fixed byte size, how many bytes do we need to convert bytes to int?
-    ciphertext: bytes = b''.join(c.to_bytes(size, "big") for c in encrypted_bytes) # Convert all int elements in the list back into a single byte sequence.
+    # Bitstuffing 
+    binary_list = try_binary_conversion.decimal_to_binary(encrypted_bytes) # Convert integers in the list into binary for bitstuffing process.
+
+    ################## Debugging ##################
+    save_binary_list_initial = binary_list.copy()
+    ################## Debugging ##################
     
-    rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys}
+    print("Before Bitstuffing: ", binary_list[:20])
+    bitX = try_bitstuffing.bitstuffX(binary_list)
+    bitY = try_bitstuffing.bitstuffY(bitX)
+    bitZ = try_bitstuffing.bitstuffZ(bitY)
+    
+    # Convert back each stuffed binary bits element in the list, into list of int.
+    binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in bitZ]
+    print("After Bitstuffing: ", binary_list[:20])
+    
+    ################## Debugging ##################
+    desZ = try_destuffing.destuffZ(bitZ)
+    desY = try_destuffing.destuffY(desZ)
+    desX = try_destuffing.destuffX(desY)
+    print("Is desX == Initial Binary List before BitStuffing?: ", desX == save_binary_list_initial)
+    print("desX: ",desX[:20])
+    ################## Debugging ##################
+    
+    # Convert all int elements in the list back into a single byte sequence.
+    max_bits = max(c.bit_length() for c in binary_list)  # Get largest bit size in `binary_list`
+    byte_list:list[bytes] = [c.to_bytes((max_bits + 7) // 8, "big") for c in binary_list]  # Ensures all numbers fit into a fixed byte size
+    print("Byte List:", byte_list)
+    
+    ciphertext: bytes = b''.join(byte_list)
+    print("Ciphertext byte sequence: ", ciphertext)
+    
+    rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys, "chunk_size": max_bits}
     
     return ciphertext, rmbrsa_parameters
 
-# Decrypt Message using RMBRSA
+# Decrypt Message using RMBRSA - Debugged and Verified
 def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     
     N:int = rbmrsa_parameters["N"]
@@ -130,20 +162,35 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     # Compute Modular Inverses for CRT Optimization
     pInv, qInv, rInv, sInv = try_decryption_crt.modInv_Computation(N, p, q, r, s)
     dp, dq, dr, ds = try_decryption_crt.crt_equations(p, q, r, s, N, d)
-
-    # We convert the single byte sequence into a list of integers.
-    encrypted_integers = []
+    
+    # We convert the single byte sequence into a list of bytes.
+    chunk_size = rbmrsa_parameters['chunk_size']  
+    
+    # Convert the single byte sequence into a list of bytes.
+    byte_list = []
     i = 0
-    size = (N.bit_length() + 7) // 8  # Fixed byte size, how many bytes do we need to convert bytes to int?
     while i < len(ciphertext):
-        encrypted_int = int.from_bytes(ciphertext[i:i+size], "big")  # Convert byte back to integer. Extract fixed-size chunks
-        encrypted_integers.append(encrypted_int) # List of encrypted integers
-        i += size  # Move to the next encrypted block
+        encrypted_int = int.from_bytes(ciphertext[i:i+((chunk_size + 7) // 8)], "big")
+        byte_list.append(encrypted_int)
+        i += ((chunk_size + 7) // 8) # Use stored chunk size and do the same formula.
 
+    # Bit destuffing 
+    binary_list = try_binary_conversion.decimal_to_binary(byte_list)
+    print("Decrypted Integers Binary List: ", binary_list[:20])
+    desZ = try_destuffing.destuffZ(binary_list)
+    desY = try_destuffing.destuffY(desZ)
+    desX = try_destuffing.destuffX(desY)
+    print("After Destuffing: ", desX[:20])
+    
+    # Convert back each stuffed binary bits element in the list into list of int.
+    binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in desX]
+    print("Binary_list: ", binary_list[:20])
+    
     # Decrypt each integer in the list.
     decrypted_integers:list[int] = try_decryption_crt.four_parts(
-        encrypted_integers, p, q, r, s, N, pInv, qInv, rInv, sInv, dp, dq, dr, ds
+        binary_list, p, q, r, s, N, pInv, qInv, rInv, sInv, dp, dq, dr, ds
     )
+    print("Decrypted Integers: ", decrypted_integers[:20])
 
     # Converts the list of integers back to a single byte sequence.
     dte = bytes(c % 256 for c in decrypted_integers)  # Ensure values fit in the valid byte range of 0-255, because a d_fake may produce result in decrypted_integers that are outside this range.
@@ -184,7 +231,18 @@ def write_plaintext(plaintext, filename):
 def read_ciphertext(filename):
     with open(filename) as in_file:
         data = json.load(in_file)    
-        rbmrsa_parameters:list = {"N": data["N"], "e": data["e"], "d": data["d"], "p": data["p"], "q": data["q"], "r": data["r"], "s": data["s"], "PHI": data["PHI"], "honey_keys": data["honey_keys"]}
+        rbmrsa_parameters:list = {
+            "N": data["N"], 
+            "e": data["e"], 
+            "d": data["d"], 
+            "p": data["p"], 
+            "q": data["q"], 
+            "r": data["r"], 
+            "s": data["s"], 
+            "PHI": data["PHI"], 
+            "honey_keys": data["honey_keys"], 
+            "chunk_size": data['chunk_size']
+        }
         return base64.b64decode(data["salt"]), rbmrsa_parameters, base64.b64decode(data["ciphertext"])
 
 def int_to_bytes(x: int, num_bytes) -> bytes:
