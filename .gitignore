@@ -1,5 +1,4 @@
 myenv
 myenv/
-Resources/__pycache__
-Resources/__pycache__/
+__pycache__/
 HPGResources/
