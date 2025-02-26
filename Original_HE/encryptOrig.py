@@ -1,5 +1,5 @@
-# Encrypt: python "Sample Simulator/encryptOrig.py" -e -s test_seedOrig.txt -o ciphertextOrig.txt -f "Sample Simulator" 
-# Decrypt: python "Sample Simulator/encryptOrig.py" -d -c ciphertextOrig.txt -o plaintextOrig.txt -f "Sample Simulator" 
+# Encrypt: python -m Original_HE.encryptOrig -e -s test_seedOrig.txt -o ciphertextOrig.txt -f "Original_HE"
+# Decrypt: python -m Original_HE.encryptOrig -d -c ciphertextOrig.txt -o plaintextOrig.txt -f "Original_HE" 
 
 # This simulator closely follows the algorithm.
 
@@ -7,18 +7,41 @@ import argparse
 import hashlib
 import base64
 import json
+import time
 import os
 from Crypto import Random
-from wordlistOrig import *
+from Original_HE.wordlistOrig import *
+from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration
 
+
+def wait_print():
+    time.sleep(2)
+    print("-------------------------------------------------------------- ")
+    print("\n\x1b[0m") # Reset Formatting
+    
 honeypasswords = []
 
 def generateWriteHP(password, subfolder):
-    honeypasswords.append("5" + password.upper())
-    honeypasswords.append(password + "123")
-    honeypasswords.append(password.lower() + "4")
-    honeypasswords.append(password + password[-1])
-    honeypasswords.append(password)
+    print("\x1b[3m\x1b[33m\nGenerating honey passwords . . . . . .")
+    # honeypasswords.append("5" + password.upper())
+    # honeypasswords.append(password + "123")
+    # honeypasswords.append(password.lower() + "4")
+    # honeypasswords.append(password + password[-1])
+    # honeypasswords.append(password)
+    
+    instance = ExistingPasswordGeneration(password)
+    honeypasswords, sugarword_index = instance.choose_method(1)
+    
+    print(f"Honeypasswords for {password}: \n \
+          {honeypasswords[0]}: Index 0 \n \
+          {honeypasswords[1]}: Index 1 \n \
+          {honeypasswords[2]}: Index 2 \n \
+          {honeypasswords[3]}: Index 3 \n \
+          {honeypasswords[4]}: Index 4 \n"
+          )
+    
+    print(f"Sugarword Index: {sugarword_index}")
+    wait_print()
 
     with open(os.path.join(subfolder, "HoneypasswordOrig.txt"), "w") as out_file:
         out_file.write(json.dumps(honeypasswords))

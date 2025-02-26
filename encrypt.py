@@ -12,16 +12,35 @@ from Crypto.Cipher import AES
 from Crypto import Random
 from Resources.wordlist import wordlist
 import hashlib
-from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_format_bitstuff, try_format_destuff, try_binary_conversion
+import time
+import os
+from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_binary_conversion
 from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
 
+def wait_print():
+    time.sleep(2)
+    print("-------------------------------------------------------------- ")
+    print("\n\x1b[0m") # Reset Formatting
+    
 # Honey Password Generation
 honeypasswords = [] 
 
 def generateWriteHP(password): 
+    
+    print("\x1b[3m\x1b[33m\nGenerating honey passwords . . . . . .")
     generator = MLHoneywordGenerator()
     honeyword_list, sugarword_index = generator.generate_honeywords(password)
     honeypasswords = honeyword_list
+
+    print(f"Honeypasswords for {password}: \n \
+          {honeypasswords[0]}: Index 0 \n \
+          {honeypasswords[1]}: Index 1 \n \
+          {honeypasswords[2]}: Index 2 \n \
+          {honeypasswords[3]}: Index 3 \n \
+          {honeypasswords[4]}: Index 4 \n"
+          )
+    print(f"Sugarword Index: {sugarword_index}")
+    wait_print()
     
     with open("Output/HoneyPasswordList.txt", "w") as out_file:
         out_file.write(json.dumps({
@@ -34,8 +53,8 @@ def readHP(password):
         data = json.load(read_file)
         honeypasswords = data["honeypasswords"]
         sugarword_index = data["sugarword_index"]
-        print(f"Honeypasswords for {password}: {honeypasswords}")
-        print(f"Sugarword Index: {sugarword_index}")
+        # print(f"Honeypasswords for {password}: {honeypasswords}")
+        # print(f"Sugarword Index: {sugarword_index}")
     if password in honeypasswords:
         return True
     return False 
@@ -49,8 +68,8 @@ def dte_encode(seed_file):
                 index = wordlist.index(word)
                 byte_value = int_to_bytes(index, 16)
                 plaintext.append(byte_value)
-                # print(byte_value) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Individually.
-    # print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
+                # # print(byte_value) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Individually.
+    # # print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
     return  b"".join(plaintext)
 
 def dte_decode(text):
@@ -105,9 +124,9 @@ def encrypt(dte:bytes):
 
     dte_bytes:list[int] = list(dte)  # Convert the byte sequence into a list of int.
     encrypted_bytes:list[int] = [pow(byte, e, N) for byte in dte_bytes]  # Encrypt each element of the list and store it in another list.
-    print("DTE: ", dte[:20])
-    print("DTE_bytes: ", dte_bytes[:20]) 
-    print("Encrypted Bytes: ", encrypted_bytes[:20]) 
+    # print("DTE: ", dte[:20])
+    # print("DTE_bytes: ", dte_bytes[:20]) 
+    # print("Encrypted Bytes: ", encrypted_bytes[:20]) 
     
     # Bitstuffing 
     binary_list = try_binary_conversion.decimal_to_binary(encrypted_bytes) # Convert integers in the list into binary for bitstuffing process.
@@ -116,30 +135,30 @@ def encrypt(dte:bytes):
     save_binary_list_initial = binary_list.copy()
     ################## Debugging ##################
     
-    print("Before Bitstuffing: ", binary_list[:20])
+    # print("Before Bitstuffing: ", binary_list[:20])
     bitX = try_bitstuffing.bitstuffX(binary_list)
     bitY = try_bitstuffing.bitstuffY(bitX)
     bitZ = try_bitstuffing.bitstuffZ(bitY)
     
     # Convert back each stuffed binary bits element in the list, into list of int.
     binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in bitZ]
-    print("After Bitstuffing: ", binary_list[:20])
+    # print("After Bitstuffing: ", binary_list[:20])
     
     ################## Debugging ##################
     desZ = try_destuffing.destuffZ(bitZ)
     desY = try_destuffing.destuffY(desZ)
     desX = try_destuffing.destuffX(desY)
-    print("Is desX == Initial Binary List before BitStuffing?: ", desX == save_binary_list_initial)
-    print("desX: ",desX[:20])
+    # print("Is desX == Initial Binary List before BitStuffing?: ", desX == save_binary_list_initial)
+    # print("desX: ",desX[:20])
     ################## Debugging ##################
     
     # Convert all int elements in the list back into a single byte sequence.
     max_bits = max(c.bit_length() for c in binary_list)  # Get largest bit size in `binary_list`
     byte_list:list[bytes] = [c.to_bytes((max_bits + 7) // 8, "big") for c in binary_list]  # Ensures all numbers fit into a fixed byte size
-    print("Byte List:", byte_list)
+    # print("Byte List:", byte_list)
     
     ciphertext: bytes = b''.join(byte_list)
-    print("Ciphertext byte sequence: ", ciphertext)
+    # print("Ciphertext byte sequence: ", ciphertext)
     
     rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys, "chunk_size": max_bits}
     
@@ -176,21 +195,21 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
 
     # Bit destuffing 
     binary_list = try_binary_conversion.decimal_to_binary(byte_list)
-    print("Decrypted Integers Binary List: ", binary_list[:20])
+    # print("Decrypted Integers Binary List: ", binary_list[:20])
     desZ = try_destuffing.destuffZ(binary_list)
     desY = try_destuffing.destuffY(desZ)
     desX = try_destuffing.destuffX(desY)
-    print("After Destuffing: ", desX[:20])
+    # print("After Destuffing: ", desX[:20])
     
     # Convert back each stuffed binary bits element in the list into list of int.
     binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in desX]
-    print("Binary_list: ", binary_list[:20])
+    # print("Binary_list: ", binary_list[:20])
     
     # Decrypt each integer in the list.
     decrypted_integers:list[int] = try_decryption_crt.four_parts(
         binary_list, p, q, r, s, N, pInv, qInv, rInv, sInv, dp, dq, dr, ds
     )
-    print("Decrypted Integers: ", decrypted_integers[:20])
+    # print("Decrypted Integers: ", decrypted_integers[:20])
 
     # Converts the list of integers back to a single byte sequence.
     dte = bytes(c % 256 for c in decrypted_integers)  # Ensure values fit in the valid byte range of 0-255, because a d_fake may produce result in decrypted_integers that are outside this range.
@@ -269,12 +288,12 @@ if __name__ == "__main__":
             exit()
         # password = getpass()
         # password2 = getpass()
-        password = input("Password: ") # My Modification so that input is visible.
-        password2 = input("Confirm Password: ") # My Modification so that input is visible.
+        password = input("Password: ") 
+        password2 = input("Confirm Password: ")
         if password != password2:
             print("Passwords did not match")
         else:
-            # generateWriteHP(password) # My Modification, write and generate honey passwords with the real password inside.
+            generateWriteHP(password) # Write and generate honey passwords with the real password inside.
             key, salt = derive_key("password")
             dte = dte_encode(args.seed_file)
             ciphertext, rbmrsa_parameters = encrypt(dte)
@@ -286,15 +305,15 @@ if __name__ == "__main__":
             print("Missing mandatory decryption flags -c or -o.")
             exit()
         # password = getpass()
-        password = input("Password: ") # My Modification so that input is visible.
-        if readHP(password): # My Modification. If it is a honey Password continue and print false text, or if Password print real text.
+        password = input("Password: ") 
+        if readHP(password): # If it is a honey Password continue and # print false text, or if Password # print real text.
             salt, rbmrsa_parameters, ciphertext = read_ciphertext(args.ciphertext_file)
             key, salt = derive_key(password, salt)
             dte = decrypt(ciphertext, rbmrsa_parameters, password)
             plaintext = dte_decode(dte)
             write_plaintext(plaintext, args.out_file)
             print("Plaintext written to", args.out_file)
-        else: # My Modification: Else print incorrect password because it isnt a honey password, and it isnt the password.
+        else: # Else print incorrect password because it isnt a honey password, and it isnt the password.
             print("Incorrect Password")
 
     """
