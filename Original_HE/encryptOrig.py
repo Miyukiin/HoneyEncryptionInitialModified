@@ -69,23 +69,32 @@ def dte_encode(seed_file):
 
 def dte_decode(text):
     words = []
-    byte_numbers = [text[i:i+2] for i in range(0, len(text), 2)] 
+    byte_numbers = [text[i:i+2] for i in range(0, len(text), 2)] # creates a list of byte pairs (chunks of 2 bytes) from text. Works as the max index (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
     for byte_number in byte_numbers:
         index = int_from_bytes(byte_number) % 2048
         words.append(wordlist[index])
+        
+    print("\x1b[3m\x1b[33m\nMapping seed to message . . . . . .")
+    for word in words:
+        print(f"→ {word}")
+    wait_print()
     return words
 
 def encrypt(dte, key):
     print("\x1b[3m\x1b[33m\nXOR Encrypting Message . . . . . .")
     print(f"\nSeed: {dte}\nKey: {key}")
-    ciphertext = xor_bytes(dte, key)
+    ciphertext = xor_bytes(dte, key) # Key (64 Argon) most of the times are longer than DTE in byte size. Doesn't break encryption, but extra bytes aren't used and are wasted.
     print(f"\nCiphertext: {ciphertext}")
     wait_print()
     return ciphertext
 
 def decrypt(ciphertext, key):
-    plaintext = xor_bytes(ciphertext, key)
-    return plaintext
+    print("\x1b[3m\x1b[33m\nXOR Decrypting Message . . . . . .")
+    print(f"\nCiphertext: {ciphertext}\nKey: {key}")
+    dte = xor_bytes(ciphertext, key) 
+    print(f"\nSeed: {dte}")
+    wait_print()
+    return dte
 
 def derive_key(password:str, salt=None):
     password_bytes = password.encode("utf-8") # String to bytes
@@ -102,10 +111,10 @@ def derive_key(password:str, salt=None):
         time_cost=2, 
         memory_cost=102400, 
         parallelism=8, 
-        hash_len=32, 
+        hash_len=64, 
         type=argon2.low_level.Type.ID
     )
-    print("\x1b[3m\x1b[33m\nDeriving Hashed Value form key and salt . . . . . .")
+    print("\x1b[3m\x1b[33m\nDeriving Hashed Value from key and salt . . . . . .")
     print(f"\nSalt: {salt}\nPassword: {password_bytes}")
     print(f"\nHashed Value: {argon2id_hash}")
     wait_print()
@@ -178,9 +187,9 @@ if __name__ == "__main__":
         if readHP(password, subfolder):
             salt, ciphertext = read_ciphertext(os.path.join(subfolder, args.ciphertext_file))
             key, _ = derive_key(password, salt)
-            plaintext = decrypt(ciphertext, key)
-            dte = dte_decode(plaintext)
-            write_plaintext(dte, os.path.join(subfolder, args.out_file))
+            dte = decrypt(ciphertext, key)
+            plaintext= dte_decode(dte)
+            write_plaintext(plaintext, os.path.join(subfolder, args.out_file))
             print("Plaintext written to", args.out_file)
         else:
             print("Incorrect Password")

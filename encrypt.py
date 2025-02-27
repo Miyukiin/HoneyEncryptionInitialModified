@@ -64,7 +64,7 @@ def dte_encode(seed_file):
         for word in seed:
             word = word.strip()
             index = wordlist.index(word)
-            byte_value = int_to_bytes(index, 16)
+            byte_value = int_to_bytes(index, 2)
             plaintext.append(byte_value)
             print('Word {} : Index {} : Byte Value: {}'.format(
                 word.ljust(10), 
@@ -79,9 +79,9 @@ def dte_encode(seed_file):
 
 def dte_decode(text):
     words = []
-    byte_numbers = [text[i:i+16] for i in range(0, len(text), 16)]
+    byte_numbers = [text[i:i+2] for i in range(0, len(text), 2)] # creates a list of byte pairs (chunks of 2 bytes) from text. Works as the max index (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
     for byte_number in byte_numbers:
-        index = int_from_bytes(byte_number) % 2048 # 2048 represents the length of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
+        index = int_from_bytes(byte_number) % 2048 # 2048 represents the max index of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
         words.append(wordlist[index]) 
     return words
  
@@ -236,10 +236,10 @@ def derive_key(password:str, salt=None):
         time_cost=2, 
         memory_cost=102400, 
         parallelism=8, 
-        hash_len=32, 
+        hash_len=64, 
         type=argon2.low_level.Type.ID
     )
-    print("\x1b[3m\x1b[33m\nDeriving Hashed Value form key and salt . . . . . .")
+    print("\x1b[3m\x1b[33m\nDeriving Hashed Value from key and salt . . . . . .")
     print(f"\nSalt: {salt}\nPassword: {password_bytes}")
     print(f"\nHashed Value: {argon2id_hash}")
     wait_print()
