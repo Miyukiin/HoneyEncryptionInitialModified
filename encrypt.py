@@ -240,7 +240,7 @@ def derive_key(password:str, salt=None):
         type=argon2.low_level.Type.ID
     )
     print("\x1b[3m\x1b[33m\nDeriving Hashed Value form key and salt . . . . . .")
-    print(f"\nSalt: {salt}\nPassword: {password}")
+    print(f"\nSalt: {salt}\nPassword: {password_bytes}")
     print(f"\nHashed Value: {argon2id_hash}")
     wait_print()
     return argon2id_hash, salt
