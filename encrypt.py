@@ -8,12 +8,10 @@ import json
 from random import Random
 import argon2
 from getpass import getpass
-from Crypto.Cipher import AES
 from Crypto import Random
 from Resources.wordlist import wordlist
 import hashlib
 import time
-import os
 from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_binary_conversion
 from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
 
@@ -31,14 +29,12 @@ def generateWriteHP(password):
     generator = MLHoneywordGenerator()
     honeyword_list, sugarword_index = generator.generate_honeywords(password)
     honeypasswords = honeyword_list
-
-    print(f"Honeypasswords for {password}: \n \
-          {honeypasswords[0]}: Index 0 \n \
-          {honeypasswords[1]}: Index 1 \n \
-          {honeypasswords[2]}: Index 2 \n \
-          {honeypasswords[3]}: Index 3 \n \
-          {honeypasswords[4]}: Index 4 \n"
-          )
+    
+    print(f"Honeypasswords for {password}: \n")
+    
+    for i in range(len(honeypasswords)):
+        print(f"{honeypasswords[i]}: Index {i}")
+    
     print(f"Sugarword Index: {sugarword_index}")
     wait_print()
     
@@ -62,12 +58,21 @@ def readHP(password):
 # Honey DTE
 def dte_encode(seed_file):
     plaintext = [] 
-    with open(seed_file) as seed:
-            for word in seed:
-                word = word.replace("\n","")
-                index = wordlist.index(word)
-                byte_value = int_to_bytes(index, 16)
-                plaintext.append(byte_value)
+    with open(seed_file) as seed:                
+        print("\x1b[3m\x1b[33m\nMapping message to seed . . . . . .")
+        print(f"Messages, seed, and byte values:\n")
+        for word in seed:
+            word = word.strip()
+            index = wordlist.index(word)
+            byte_value = int_to_bytes(index, 16)
+            plaintext.append(byte_value)
+            print('Word {} : Index {} : Byte Value: {}'.format(
+                word.ljust(10), 
+                str(index).ljust(10), 
+                str(byte_value).ljust(10))
+            )
+        print(f"\nBinary String of Message: {b"".join(plaintext)}")
+        wait_print()
                 # # print(byte_value) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Individually.
     # # print(b"".join(plaintext)) # Show Bytes in hexadecimal form (\x) of Test Seed Word Indices Combined.
     return  b"".join(plaintext)
@@ -216,9 +221,17 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
 
     return dte
 
-def derive_key(password:str, salt=Random.new().read(16)):
+def derive_key(password:str, salt=None):
+    password_bytes = password.encode("utf-8") # String to bytes
+    
+    # Generate a salt of the same length as password_bytes, else read 16 as minimum for Argon2 compliance
+    if salt is None and len(password_bytes) >= 16:
+        salt = Random.new().read(len(password_bytes))
+    elif salt is None and len(password_bytes) < 16:
+        salt = Random.new().read(16)
+        
     argon2id_hash = argon2.low_level.hash_secret_raw(
-        password.encode("utf8"), 
+        password_bytes,  # String to bytes
         salt, 
         time_cost=2, 
         memory_cost=102400, 
@@ -226,6 +239,10 @@ def derive_key(password:str, salt=Random.new().read(16)):
         hash_len=32, 
         type=argon2.low_level.Type.ID
     )
+    print("\x1b[3m\x1b[33m\nDeriving Hashed Value form key and salt . . . . . .")
+    print(f"\nSalt: {salt}\nPassword: {password}")
+    print(f"\nHashed Value: {argon2id_hash}")
+    wait_print()
     return argon2id_hash, salt
 
 def write_ciphertext(salt, ciphertext, rbmrsa_parameters:dict, filename):

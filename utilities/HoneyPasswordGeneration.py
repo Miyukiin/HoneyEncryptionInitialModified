@@ -1,5 +1,5 @@
-# Copied from HoneyPassword API utils.py on February 9, 2025.
-# For utility purposes of this algorithm simulator only. Does not modify core logic from source file.
+# Was copied from HoneyPassword API utils.py on February 9, 2025. This version is currently the latest.
+# Only new modification is the modified is_unique_or_list_empty -> is_unique_and_not_sugarword_or_list_empty to include checks against sugarword. Avoid duplicate sugarwords in a list.
 # Contains Proposed and Existing Honeyword Generation Method.
 
 import os
