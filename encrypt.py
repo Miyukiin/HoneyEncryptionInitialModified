@@ -7,7 +7,6 @@ import base64
 import json
 from random import Random
 import argon2
-from getpass import getpass
 from Crypto import Random
 from Resources.wordlist import wordlist
 import hashlib
@@ -97,44 +96,84 @@ def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
     bit_mask = 1 << (d_bit_length - 1) # 100...000 (2048 bits long)
     d_fake |= bit_mask  # Sets the highest bit of d_fake to 1 so it is the same length
     
+    print(f"Honey Password: {password}")
+    print(f"Password Encoded: {password.encode()}")
+    print(f"Password Hashed: {hashlib.sha256(password.encode())}")
+    print(f"Password Hexa: {hashed}")
+    print(f"\nFake Key Integer: {fake_key_int}")
+    print(f"Fake d: {fake_key_int % PHI  }")
+    
+    print(f"D bit length: {d_bit_length}")
+    print(f"Bit Mask: {bit_mask}")
+    print(f"Final fake d: {d_fake}\n")
+    
     return d_fake
 
 # Encrypt Message using RMBRSA - Debugged and Verified
 def encrypt(dte:bytes):
-    bit_input = 256  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertxt. file
+    bit_input = 16  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertext. file
     bits = try_generating_keys.compute_bit(bit_input) # We just floor divide the bits by 4 - among the four prime numbers
 
-    p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
-    N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
+    #p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
+    #N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
+    p, q, r, s = 179, 139, 227, 137 # For testing purposes, constant value for methodology
+    N, PHI, e = 773774219, 754999104, 53131 # For testing purposes, constant value for methodology
     y, x = try_eea_mod.gcd_checker(e, PHI)
     d = try_eea_mod.generating_d(x, y, e, PHI) # We compute for the private key.
+    
+    print("\x1b[3m\x1b[33m\nOutputting RBMRSA parameters . . . . . .")
+    print("Four Prime Numbers:\np = {}, q = {}, r = {}, s = {}".format(p,q,r,s))
+    print("n = {}, totient N (PHI) = {}, e = {}".format(N, PHI, e))
+    print("y = {}, x = {}".format(y,x))
+    print("Public Key (e, N) = ({}, {})".format(e, N))
+    print("Private key (d, N) = ({}, {})".format(d, N))
+    wait_print()
     
     with open("Output/HoneyPasswordList.txt", "r") as read_file:
         data = json.load(read_file)
         honeypasswords:list[str] = data["honeypasswords"]
         sugarword_index:int = data["sugarword_index"]
         
+    print("\x1b[3m\x1b[33m\nPrinting HoneyPasswords . . . . . .")
+    for i in range(len(honeypasswords)):
+        print(f"{honeypasswords[i]}: Index {i}")
+    print(f"Sugarword Index: {sugarword_index}")
+    wait_print()
+        
     fake_passwords = honeypasswords.copy() # Make another copy, not a reference.
     fake_passwords.pop(sugarword_index) # Remove sugarword from list of honeypasswords.
+    
     honey_keys: list[dict[str, int]] = [{} for _ in range(len(honeypasswords))]  # Ensures the list is pre-filled with empty dictionaries of length honeypasswords.
     # Attach a fake private key to every honey password.
     j=0
+    print("\x1b[3m\x1b[33m\nPrinting Fake Private Key . . . . . .")
     for i in range (len(honeypasswords)):
         if i != sugarword_index:
             honey_keys[i] = {fake_passwords[j]: derive_fake_private_key(fake_passwords[j], d.bit_length(), PHI)}
             j = j + 1
             continue           
         honey_keys[i] = {honeypasswords[sugarword_index]: d} # Insert sugarword with actual d private key inside honey_keys list of dictionaries.
+    wait_print()
+    
+    print("\x1b[3m\x1b[33m\nPrinting HoneyPasswords with Private Keys . . . . . .")
+    for hp_pkey_pair in honey_keys:
+        hp, pkey = next(iter(hp_pkey_pair.items()))
+        print("{}: {}".format(hp.ljust(25), str(pkey).ljust(25)))
+    print(f"Sugarword Index: {sugarword_index}")
+    wait_print()
 
-
+    print("\x1b[3m\x1b[33m\nSeed Encryption . . . . . .")
+    
     dte_bytes:list[int] = list(dte)  # Convert the byte sequence into a list of int.
     encrypted_bytes:list[int] = [pow(byte, e, N) for byte in dte_bytes]  # Encrypt each element of the list and store it in another list.
-    # print("DTE: ", dte[:20])
-    # print("DTE_bytes: ", dte_bytes[:20]) 
-    # print("Encrypted Bytes: ", encrypted_bytes[:20]) 
+    print("Seed Byte String: ", dte)
+    print("Array of Integers: ", dte_bytes) 
+    print("Array of Encrypted Integers: ", encrypted_bytes) 
     
     # Bitstuffing 
     binary_list = try_binary_conversion.decimal_to_binary(encrypted_bytes) # Convert integers in the list into binary for bitstuffing process.
+    print(f"Binary Array of Encrypted Integers: {binary_list}")
+    wait_print()
 
     ################## Debugging ##################
     save_binary_list_initial = binary_list.copy()
@@ -145,9 +184,16 @@ def encrypt(dte:bytes):
     bitY = try_bitstuffing.bitstuffY(bitX)
     bitZ = try_bitstuffing.bitstuffZ(bitY)
     
+    print("\x1b[3m\x1b[33m\nBit Stuffing . . . . . .")
+    print("bitX: {}".format(str(bitX).ljust(30)))
+    print("bitY: {}".format(str(bitY).ljust(30)))
+    print("bitZ: {}".format(str(bitZ).ljust(30)))
+    
     # Convert back each stuffed binary bits element in the list, into list of int.
     binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in bitZ]
-    # print("After Bitstuffing: ", binary_list[:20])
+    
+    print(f"Bit-stuffed Array of Encrypted Integers: {binary_list}")
+    wait_print()
     
     ################## Debugging ##################
     desZ = try_destuffing.destuffZ(bitZ)
@@ -157,13 +203,17 @@ def encrypt(dte:bytes):
     # print("desX: ",desX[:20])
     ################## Debugging ##################
     
+    print("\x1b[3m\x1b[33m\nConversion to Single Byte String . . . . . .")
     # Convert all int elements in the list back into a single byte sequence.
     max_bits = max(c.bit_length() for c in binary_list)  # Get largest bit size in `binary_list`
     byte_list:list[bytes] = [c.to_bytes((max_bits + 7) // 8, "big") for c in binary_list]  # Ensures all numbers fit into a fixed byte size
-    # print("Byte List:", byte_list)
     
     ciphertext: bytes = b''.join(byte_list)
-    # print("Ciphertext byte sequence: ", ciphertext)
+    
+    print("Bit-stuffed Binary Array of Encrypted Integers: ", byte_list)
+    print("Chunk Size: ", max_bits)
+    print("Ciphertext Byte String: ", ciphertext)
+
     
     rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys, "chunk_size": max_bits}
     
@@ -187,48 +237,61 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     pInv, qInv, rInv, sInv = try_decryption_crt.modInv_Computation(N, p, q, r, s)
     dp, dq, dr, ds = try_decryption_crt.crt_equations(p, q, r, s, N, d)
     
-    # We convert the single byte sequence into a list of bytes.
-    chunk_size = rbmrsa_parameters['chunk_size']  
+    print("\x1b[3m\x1b[33m\nPrinting Decryption Modular Inverses . . . . . .")
+    print(f"pInv:{pInv}\nqInv:{qInv}\nrInv:{rInv}\nsInv:{sInv}")
+    print(f"dp:{dp}\ndq:{dq}\ndr:{dr}\nds:{ds}")
     
-    # Convert the single byte sequence into a list of bytes.
+    # We convert the single byte sequence into a list of bytes.
+    chunk_size = rbmrsa_parameters['chunk_size'] 
+    print("Chunk Size: ", chunk_size)
+    wait_print()
+
     byte_list = []
     i = 0
     while i < len(ciphertext):
         encrypted_int = int.from_bytes(ciphertext[i:i+((chunk_size + 7) // 8)], "big")
         byte_list.append(encrypted_int)
         i += ((chunk_size + 7) // 8) # Use stored chunk size and do the same formula.
+        
+    print("\x1b[3m\x1b[33m\nPrinting Bit-stuffed Array of Encrypted Integers and Bit-stuffed Binary List of Encrypted Integers . . . . . .")
+    print(f"Bit-stuffed Array of Encrypted Integers: {byte_list}")
+    binary_list = try_binary_conversion.decimal_to_binary(byte_list)
+    print(f"Bit-stuffed Binary Array of Encrypted Integers: {binary_list}")
+    wait_print()
 
     # Bit destuffing 
-    binary_list = try_binary_conversion.decimal_to_binary(byte_list)
     # print("Decrypted Integers Binary List: ", binary_list[:20])
     desZ = try_destuffing.destuffZ(binary_list)
     desY = try_destuffing.destuffY(desZ)
     desX = try_destuffing.destuffX(desY)
     # print("After Destuffing: ", desX[:20])
     
+    print("\x1b[3m\x1b[33m\nDeStuffing of Bit-stuffed Binary Array of Encrypted Integers . . . . . .")
+    print("desZ: {}".format(str(desZ).ljust(30)))
+    print("desY: {}".format(str(desY).ljust(30)))
+    print("desX: {}".format(str(desX).ljust(30)))
+    wait_print()
+    
+    print("\x1b[3m\x1b[33m\nDe-stuffed Binary Array of Encrypted Integers to Integer Conversion . . . . . .")
     # Convert back each stuffed binary bits element in the list into list of int.
     binary_list:list[int] = [try_binary_conversion.binary_to_decimal(element) for element in desX]
-    # print("Binary_list: ", binary_list[:20])
-    
+    print("Array of Encrypted Integers: ", binary_list)
+
     # Decrypt each integer in the list.
     decrypted_integers:list[int] = try_decryption_crt.four_parts(
         binary_list, p, q, r, s, N, pInv, qInv, rInv, sInv, dp, dq, dr, ds
     )
-    # print("Decrypted Integers: ", decrypted_integers[:20])
+    print("Array of Decrypted Integers: ", decrypted_integers)
 
     # Converts the list of integers back to a single byte sequence.
     dte = bytes(c % 256 for c in decrypted_integers)  # Ensure values fit in the valid byte range of 0-255, because a d_fake may produce result in decrypted_integers that are outside this range.
-
+    print(f"Seed Byte String: {dte}")
+    wait_print()
     return dte
 
 def derive_key(password:str, salt=None):
     password_bytes = password.encode("utf-8") # String to bytes
-    
-    # Generate a salt of the same length as password_bytes, else read 16 as minimum for Argon2 compliance
-    if salt is None and len(password_bytes) >= 16:
-        salt = Random.new().read(len(password_bytes))
-    elif salt is None and len(password_bytes) < 16:
-        salt = Random.new().read(16)
+    salt = Random.new().read(16)
         
     argon2id_hash = argon2.low_level.hash_secret_raw(
         password_bytes,  # String to bytes
@@ -303,14 +366,12 @@ if __name__ == "__main__":
         if args.seed_file == None or args.out_file == None:
             print("Missing mandatory encryption flags -s or -o.")
             exit()
-        # password = getpass()
-        # password2 = getpass()
         password = input("Password: ") 
         password2 = input("Confirm Password: ")
         if password != password2:
             print("Passwords did not match")
         else:
-            generateWriteHP(password) # Write and generate honey passwords with the real password inside.
+            #generateWriteHP(password) # Write and generate honey passwords with the real password inside.
             key, salt = derive_key("password")
             dte = dte_encode(args.seed_file)
             ciphertext, rbmrsa_parameters = encrypt(dte)
@@ -321,7 +382,6 @@ if __name__ == "__main__":
         if args.ciphertext_file == None or args.out_file == None:
             print("Missing mandatory decryption flags -c or -o.")
             exit()
-        # password = getpass()
         password = input("Password: ") 
         if readHP(password): # If it is a honey Password continue and # print false text, or if Password # print real text.
             salt, rbmrsa_parameters, ciphertext = read_ciphertext(args.ciphertext_file)
