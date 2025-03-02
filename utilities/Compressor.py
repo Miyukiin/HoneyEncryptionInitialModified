@@ -1,8 +1,15 @@
 # python -m utilities.Compressor
 import zlib
 from Resources.wordlist import wordlist
-import pickle
+import json
 import sys
+import pprint
+import time
+
+def wait_print():
+    time.sleep(2)
+    print("-------------------------------------------------------------- ")
+    print("\n\x1b[0m") # Reset Formatting
 
 class Compressor:
     def __init__(self, wordlist):
@@ -10,21 +17,33 @@ class Compressor:
 
     def compress_wordlist(self):
         """Compresses the word list using zlib."""
-        return zlib.compress(pickle.dumps(self.text), 9)
-
+        json_data = json.dumps(self.text)
+        return zlib.compress(json_data.encode("utf-8"), 9)  
+    
     def decompress_wordlist(self, compressed_data):
         """Decompresses the word list using zlib."""
-        return pickle.loads(zlib.decompress(compressed_data))
+        decompressed_data = zlib.decompress(compressed_data).decode("utf-8")
+        return json.loads(decompressed_data) 
 
 if __name__ == "__main__":  
     compressor = Compressor(wordlist)
+    print("\x1b[3m\x1b[33m\nOriginal Size: {} bytes".format(sys.getsizeof(json.dumps(compressor.text))))
+    pprint.pprint(f"Original Words: {compressor.text}", width=1000)
+    wait_print()
+    
     compressed_words = compressor.compress_wordlist()
-    print(f"Original Size: {sys.getsizeof(pickle.dumps(wordlist))} bytes")
-    print(f"Compressed Size: {sys.getsizeof(compressed_words)} bytes")
+    print("\x1b[3m\x1b[33m\nCompressed Size: {} bytes".format(sys.getsizeof(compressed_words)))
+    pprint.pprint(f"Compressed Words: {compressed_words}", width=1000)
+    wait_print()
 
-    # Decompress the word list
     decompressed_words = compressor.decompress_wordlist(compressed_words)
-    print(f"Decompressed Words: {decompressed_words}")
+    print("\x1b[3m\x1b[33m\nDecompressed Size: {} bytes".format(sys.getsizeof(json.dumps(decompressed_words))))
+    pprint.pprint(f"Decompressed Words: {decompressed_words}", width=1000)
+    wait_print()
 
-    # Verify that the decompressed list matches the original
-    assert decompressed_words == wordlist, "Decompressed word list does not match the original!"
+    if decompressed_words != compressor.text:
+        print("Decompressed word list does not match the original!")
+        assert decompressed_words == compressor.text, "Decompressed word list does not match the original wordlist."
+        
+    print("\x1b[3m\x1b[33m\nDecompressed word list matches the original wordlist.")
+    wait_print()
