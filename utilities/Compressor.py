@@ -4,6 +4,7 @@ from Resources.wordlist import wordlist
 from collections import Counter
 import heapq
 import sys
+import pprint
 
 class Compressor():
     def __init__(self):
@@ -34,7 +35,7 @@ class Compressor():
         if w:
             lzw_compressed_data.append(dictionary[w])
 
-        return lzw_compressed_data
+        return lzw_compressed_data # Returns a List of Integers where instead of characters, they are represented by the integer unique pattern as specified in the dictionary.
 
     def lzw_decode(self, compressed_lzw_data:list[int]):
             
@@ -100,7 +101,7 @@ class Compressor():
     
     def huffman_encode(self, lzw_compressed_data:list[int], codebook:dict):
         self.huffman_encoded_data = "".join(codebook[symbol] for symbol in lzw_compressed_data)
-        return self.huffman_encoded_data
+        return self.huffman_encoded_data # Returns a string containing binary numbers.
     
     def huffman_decode(self, huffman_encoded_data, root):
         decoded_data = []
@@ -201,20 +202,13 @@ if __name__ == "__main__":
     # Binary Encode the Huffman Output
     binary_compressed_data = instance.huffman_to_bytes(huffman_compressed_data)
     
-    
-    print(f"Original Size: {sys.getsizeof(text.encode("utf-8"))} bytes")
-    
-    print(f"LZW Output Length: {len(lzw_compressed_data)} codes")
-    print(f"IS LZW Effective? Is the compressed data shorter in terms of bitstream than original {len(lzw_compressed_data)} < {len(text)} ? {len(lzw_compressed_data) < len(text)}")
-    
-    print(f"Huffman Compressed Size: {sys.getsizeof(huffman_compressed_data)} bytes")
+    print(f"Original Size: {sys.getsizeof(text.encode("utf-8"))} bytes") 
     print(f"Binary Compressed Size: {sys.getsizeof(binary_compressed_data)} bytes")
 
     original_size = sys.getsizeof(text.encode("utf-8"))
     compressed_size = sys.getsizeof(binary_compressed_data)  # In bytes
     compression_ratio = original_size / compressed_size
     print(f"Compression Ratio: {compression_ratio:.2f}x")
-
 
     # Convert Binary Input into Huffman Output
     huffman_compressed_data = instance.bytes_to_huffman(binary_compressed_data)
