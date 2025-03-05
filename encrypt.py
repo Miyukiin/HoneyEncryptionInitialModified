@@ -13,6 +13,7 @@ import hashlib
 import time
 from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_binary_conversion
 from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
+import pprint
 
 def wait_print():
     time.sleep(2)
@@ -22,12 +23,17 @@ def wait_print():
 # Honey Password Generation
 honeypasswords = [] 
 
-def generateWriteHP(password): 
+def generateWriteHP(password, salt): 
     
     print("\x1b[3m\x1b[33m\nGenerating honey passwords . . . . . .")
-    generator = MLHoneywordGenerator()
-    honeyword_list, sugarword_index = generator.generate_honeywords(password)
-    honeypasswords = honeyword_list
+    #generator = MLHoneywordGenerator()
+    #honeyword_list, sugarword_index = generator.generate_honeywords(password)
+    ### Testing only, Consistent Honey Passwords. Sugarword is index 3 ###
+    honeyword_list = ["Commander23!467840", "Computerman8887776", "Componline2231**#$", "ComputerScience242", "Comport0071977****"]
+    sugarword_index = 3
+    ### Test End ###
+    honeypasswords:list[str] = honeyword_list
+    honeypassword_hashes:list[str] = []
     
     print(f"Honeypasswords for {password}: \n")
     
@@ -35,22 +41,33 @@ def generateWriteHP(password):
         print(f"{honeypasswords[i]}: Index {i}")
     
     print(f"Sugarword Index: {sugarword_index}")
+
+    
+    for password in honeypasswords:
+        honeypassword_hash, _ = derive_key(password, salt)
+        honeypassword_hash = base64.b64encode(honeypassword_hash).decode('utf-8') # Encode the Raw Hash binary data into ASCII-safe characters
+        honeypassword_hashes.append(honeypassword_hash)
+    
+    print(f"Honeypasswords and Honeyhashes for {password}: \n")
+    for hash_pass_tuple in zip(honeypassword_hashes, honeypasswords):
+        print("{} : {}".format(hash_pass_tuple[0].ljust(50), hash_pass_tuple[1].ljust(50)))
+    
     wait_print()
     
     with open("Output/HoneyPasswordList.txt", "w") as out_file:
         out_file.write(json.dumps({
-            "honeypasswords":honeypasswords, 
+            "honeypasswords":honeypassword_hashes, 
             "sugarword_index": sugarword_index    
         }))
         
-def readHP(password):
+def readHP(password_hash, salt):
     with open("Output/HoneyPasswordList.txt", "r") as read_file:
         data = json.load(read_file)
         honeypasswords = data["honeypasswords"]
         sugarword_index = data["sugarword_index"]
         # print(f"Honeypasswords for {password}: {honeypasswords}")
         # print(f"Sugarword Index: {sugarword_index}")
-    if password in honeypasswords:
+    if password_hash in honeypasswords:
         return True
     return False 
 
@@ -87,7 +104,7 @@ def dte_decode(text):
 def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
     """Derives a fake private key with the same bit length as the real private key `d`."""
     hashed = hashlib.sha256(password.encode()).hexdigest()  # Hash password to hex string
-    fake_key_int = int(hashed, 16)  # Convert hash to integer
+    fake_key_int = int(hashed, 16)  # Convert hexa hash to integer
     
     # Keeps d_fake within valid range of modular arithmetic, not negative or too large.
     d_fake = fake_key_int % PHI  
@@ -116,8 +133,10 @@ def encrypt(dte:bytes):
 
     #p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
     #N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
-    p, q, r, s = 179, 139, 227, 137 # For testing purposes, constant value for methodology
-    N, PHI, e = 773774219, 754999104, 53131 # For testing purposes, constant value for methodology
+    ### Testing only, Consistent Values for consistent output ###
+    p, q, r, s = 179, 139, 227, 137
+    N, PHI, e = 773774219, 754999104, 53131
+    ### Test End ###
     y, x = try_eea_mod.gcd_checker(e, PHI)
     d = try_eea_mod.generating_d(x, y, e, PHI) # We compute for the private key.
     
@@ -220,7 +239,7 @@ def encrypt(dte:bytes):
     return ciphertext, rmbrsa_parameters
 
 # Decrypt Message using RMBRSA - Debugged and Verified
-def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
+def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password_hash:str):
     
     N:int = rbmrsa_parameters["N"]
     p:int = rbmrsa_parameters["p"]
@@ -231,7 +250,7 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
     # For reference: [{"pass123":fake d},{"pass456":fake d}] -> {"pass123":fake d, "pass456":fake d}
     
     # Retrieve honey_key using input password.
-    d:int = honey_keys[password]
+    d:int = honey_keys[password_hash]
     
     # Compute Modular Inverses for CRT Optimization
     pInv, qInv, rInv, sInv = try_decryption_crt.modInv_Computation(N, p, q, r, s)
@@ -291,7 +310,8 @@ def decrypt(ciphertext: bytes, rbmrsa_parameters: dict, password:str):
 
 def derive_key(password:str, salt=None):
     password_bytes = password.encode("utf-8") # String to bytes
-    salt = Random.new().read(16)
+    if salt is None:
+        salt = Random.new().read(16)
         
     argon2id_hash = argon2.low_level.hash_secret_raw(
         password_bytes,  # String to bytes
@@ -371,8 +391,8 @@ if __name__ == "__main__":
         if password != password2:
             print("Passwords did not match")
         else:
-            #generateWriteHP(password) # Write and generate honey passwords with the real password inside.
-            key, salt = derive_key("password")
+            _, salt = derive_key("password")
+            generateWriteHP(password, salt) # Write and generate honey passwords with the real password inside.
             dte = dte_encode(args.seed_file)
             ciphertext, rbmrsa_parameters = encrypt(dte)
             write_ciphertext(salt, ciphertext, rbmrsa_parameters, args.out_file)
@@ -383,10 +403,11 @@ if __name__ == "__main__":
             print("Missing mandatory decryption flags -c or -o.")
             exit()
         password = input("Password: ") 
-        if readHP(password): # If it is a honey Password continue and # print false text, or if Password # print real text.
-            salt, rbmrsa_parameters, ciphertext = read_ciphertext(args.ciphertext_file)
-            key, salt = derive_key(password, salt)
-            dte = decrypt(ciphertext, rbmrsa_parameters, password)
+        salt, rbmrsa_parameters, ciphertext = read_ciphertext(args.ciphertext_file)
+        key, _ = derive_key(password, salt)
+        key = base64.b64encode(key).decode('utf-8') # Encode the Raw Hash binary data into ASCII-safe characters
+        if readHP(key, salt): # If it is a honey Password continue and # print false text, or if Password # print real text.
+            dte = decrypt(ciphertext, rbmrsa_parameters, key)
             plaintext = dte_decode(dte)
             write_plaintext(plaintext, args.out_file)
             print("Plaintext written to", args.out_file)
@@ -498,5 +519,5 @@ if __name__ == "__main__":
                 6.1 This is the step 'M ¬ decode(S)'
                 6.2 split the bytes into 16 byte chunks
                 6.3 convert the int index from 16 bytes form.
-                6.4 Find the corresponding word using the index in the wordlist.
+                6.4 Find the corresponding word using the index in the wordlist._
     """
