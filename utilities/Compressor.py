@@ -5,6 +5,8 @@ from collections import Counter
 import heapq
 import sys
 import pprint
+import math
+import bitarray
 
 class Compressor():
     def __init__(self):
@@ -142,6 +144,18 @@ class Compressor():
         # Remove padding
         return binary_string[:-padding_length] if padding_length > 0 else binary_string
     
+    def lzw_to_bitstream(self, lzw_compressed_data):
+        "Converts LZW Output into bytes form for accurate measurement of LZW output byte size."
+        max_code = max(lzw_compressed_data)  # Get the highest dictionary code used
+        bits_per_code = max(9, math.ceil(math.log2(max_code + 1)))  # Adjust bit size dynamically (min 9 bits) 256, 512, 1024, 2048, 4096 where 2^n where n is bits required to store the max code.
+
+        bit_data = bitarray.bitarray()
+        encoded_bits = ''.join(format(code, f'0{bits_per_code}b') for code in lzw_compressed_data)  # Pack each number
+
+        #print(f"Bits Per LZW Code: {bits_per_code}")
+        bit_data.extend(encoded_bits)  # Store as bitstream
+        return bit_data.tobytes()
+    
     def compress(self, text):
         # LZW Compress the string of text
         lzw_compressed_data = self.lzw_encode(text)
@@ -169,7 +183,8 @@ class Compressor():
         
         # Convert Huffman Input into LZW Output
         if self.huffman_root is None:
-            assert "Huffman Root is None. Call compress function first."
+            raise AssertionError("Huffman Root is None. Call compress function first.")
+        
         lzw_compressed_data = instance.huffman_decode(huffman_compressed_data, self.huffman_root)
         
         # Decode LZW Input into String
@@ -180,7 +195,6 @@ class Compressor():
         
         return decompressed_data
 
-        
   
 if __name__ == "__main__":
     instance = Compressor()
@@ -199,33 +213,40 @@ if __name__ == "__main__":
     # Huffman Encode the LZW Output
     huffman_compressed_data = instance.huffman_encode(lzw_compressed_data, huffman_codebook)
     
-    # Binary Encode the Huffman Output
-    binary_compressed_data = instance.huffman_to_bytes(huffman_compressed_data)
+    # Convert the Huffman Output into Bytes
+    huffman_compressed_data_bytes = instance.huffman_to_bytes(huffman_compressed_data)
 
-    # Convert Binary Input into Huffman Output
-    huffman_compressed_data = instance.bytes_to_huffman(binary_compressed_data)
+    # Convert the Bytes into Huffman Output
+    huffman_compressed_data = instance.bytes_to_huffman(huffman_compressed_data_bytes)
     
     # Convert Huffman Input into LZW Output
     lzw_compressed_data = instance.huffman_decode(huffman_compressed_data, huffman_root)
     
     # Decode LZW Input into List of String
     decompressed_data = instance.lzw_decode(lzw_compressed_data)
+
+    # Calculations and Conversions to binary for printing of results.
+    hex_output = ''.join(f"\\x{b:02x}" for b in text.encode('utf-8'))
+    lzw_compressed_data_bytes = instance.lzw_to_bitstream(lzw_compressed_data)
+    
+    original_data_size_bytes = sys.getsizeof(text.encode("utf-8"))
+    lzw_compressed_data_size_bytes = sys.getsizeof(lzw_compressed_data_bytes)
+    huffman_compressed_data_size_bytes = sys.getsizeof(huffman_compressed_data_bytes) 
+    compression_ratio = original_data_size_bytes / huffman_compressed_data_size_bytes
     
     # Printing of Results
-    print(f"Original Size: {sys.getsizeof(text.encode("utf-8"))} bytes") 
-    print(f"Binary Compressed Size: {sys.getsizeof(binary_compressed_data)} bytes\n")
+    print(f"Original Size: {original_data_size_bytes} Bytes")
+    print(f"LZW Compressed Size: {lzw_compressed_data_size_bytes} Bytes")
+    print(f"Huffman Compressed Size: {huffman_compressed_data_size_bytes} Bytes\n")
+    print(f"\nCompression Ratio: {compression_ratio:.2f}x")
     
     print(f"Original Text: \n{text}\n")
     print(f"Decompressed Text: \n{decompressed_data}\n")
     
-    hex_output = ''.join(f"\\x{b:02x}" for b in text.encode('utf-8'))
     print(f"Hexadecimal String Original Text: \n{hex_output}" )
-    print(f"\n\nHexadecimal String Compressed Text: \n{binary_compressed_data}")
+    print(f"\n\nHexadecimal String Compressed Text: \n{huffman_compressed_data_bytes}")
 
-    original_size = sys.getsizeof(text.encode("utf-8"))
-    compressed_size = sys.getsizeof(binary_compressed_data)  # In bytes
-    compression_ratio = original_size / compressed_size
-    print(f"\n\nCompression Ratio: {compression_ratio:.2f}x")
+
 
 
         
