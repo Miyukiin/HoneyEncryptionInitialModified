@@ -100,31 +100,6 @@ def dte_decode(text):
         index = int_from_bytes(byte_number) % 2048 # 2048 represents the max index of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
         words.append(wordlist[index]) 
     return words
- 
-def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
-    """Derives a fake private key with the same bit length as the real private key `d`."""
-    hashed = hashlib.sha256(password.encode()).hexdigest()  # Hash password to hex string
-    fake_key_int = int(hashed, 16)  # Convert hexa hash to integer
-    
-    # Keeps d_fake within valid range of modular arithmetic, not negative or too large.
-    d_fake = fake_key_int % PHI  
-    
-    # Force `d_fake` to have exactly the same bit length as `d`
-    bit_mask = 1 << (d_bit_length - 1) # 100...000 (2048 bits long)
-    d_fake |= bit_mask  # Sets the highest bit of d_fake to 1 so it is the same length
-    
-    print(f"Honey Password: {password}")
-    print(f"Password Encoded: {password.encode()}")
-    print(f"Password Hashed: {hashlib.sha256(password.encode())}")
-    print(f"Password Hexa: {hashed}")
-    print(f"\nFake Key Integer: {fake_key_int}")
-    print(f"Fake d: {fake_key_int % PHI  }")
-    
-    print(f"D bit length: {d_bit_length}")
-    print(f"Bit Mask: {bit_mask}")
-    print(f"Final fake d: {d_fake}\n")
-    
-    return d_fake
 
 # Encrypt Message using RMBRSA - Debugged and Verified
 def encrypt(dte:bytes):
@@ -327,6 +302,31 @@ def derive_key(password:str, salt=None):
     print(f"\nHashed Value: {argon2id_hash}")
     wait_print()
     return argon2id_hash, salt
+
+def derive_fake_private_key(password: str, d_bit_length: int, PHI: int):
+    """Derives a fake private key with the same bit length as the real private key `d`."""
+    hashed = hashlib.sha256(password.encode()).hexdigest()  # Hash password to hex string
+    fake_key_int = int(hashed, 16)  # Convert hexa hash to integer
+    
+    # Keeps d_fake within valid range of modular arithmetic, not negative or too large.
+    d_fake = fake_key_int % PHI  
+    
+    # Force `d_fake` to have exactly the same bit length as `d`
+    bit_mask = 1 << (d_bit_length - 1) # 100...000 (2048 bits long)
+    d_fake |= bit_mask  # Sets the highest bit of d_fake to 1 so it is the same length
+    
+    print(f"Honey Password: {password}")
+    print(f"Password Encoded: {password.encode()}")
+    print(f"Password Hashed: {hashlib.sha256(password.encode())}")
+    print(f"Password Hexa: {hashed}")
+    print(f"\nFake Key Integer: {fake_key_int}")
+    print(f"Fake d: {fake_key_int % PHI  }")
+    
+    print(f"D bit length: {d_bit_length}")
+    print(f"Bit Mask: {bit_mask}")
+    print(f"Final fake d: {d_fake}\n")
+    
+    return d_fake
 
 def write_ciphertext(salt, ciphertext, rbmrsa_parameters:dict, filename):
     with open(filename, "w") as out_file:
