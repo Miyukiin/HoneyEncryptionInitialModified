@@ -47,8 +47,7 @@ def generateWriteHP(password, salt):
         honeypassword_hash, _ = derive_key(password, salt)
         honeypassword_hash = base64.b64encode(honeypassword_hash).decode('utf-8') # Encode the Raw Hash binary data into ASCII-safe characters
         honeypassword_hashes.append(honeypassword_hash)
-    
-    print(f"Honeypasswords and Honeyhashes for {password}: \n")
+    print(f"\x1b[3m\x1b[33m\nHoneypasswords and Honeyhashes for {honeypasswords[sugarword_index]}: \n")
     for hash_pass_tuple in zip(honeypassword_hashes, honeypasswords):
         print("{} : {}".format(hash_pass_tuple[0].ljust(50), hash_pass_tuple[1].ljust(50)))
     
@@ -80,7 +79,8 @@ def dte_encode(seed_file):
         for word in seed:
             word = word.strip()
             index = wordlist.index(word)
-            byte_value = int_to_bytes(index, 2)
+            chunk_size_bytes = 2 # Must be the same size in DTE encode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the DTE.
+            byte_value = int_to_bytes(index, chunk_size_bytes) 
             plaintext.append(byte_value)
             print('Word {} : Index {} : Byte Value: {}'.format(
                 word.ljust(10), 
@@ -95,7 +95,8 @@ def dte_encode(seed_file):
 
 def dte_decode(text):
     words = []
-    byte_numbers = [text[i:i+2] for i in range(0, len(text), 2)] # creates a list of byte pairs (chunks of 2 bytes) from text. Works as the max index (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
+    chunk_size_bytes = 2 # Must be the same size in DTE encode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the dte.
+    byte_numbers = [text[i:i+chunk_size_bytes] for i in range(0, len(text), chunk_size_bytes)] # creates a list of byte strings (default chunks of 2 bytes) from text. Works as the max index of wordlist (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
     for byte_number in byte_numbers:
         index = int_from_bytes(byte_number) % 2048 # 2048 represents the max index of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
         words.append(wordlist[index]) 
