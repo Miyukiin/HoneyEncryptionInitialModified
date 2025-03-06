@@ -13,7 +13,10 @@ import hashlib
 import time
 from utilities.RBMRSA import try_generating_keys, try_eea_mod, try_decryption_crt, try_bitstuffing, try_destuffing, try_binary_conversion
 from utilities.HoneyPasswordGeneration import ExistingPasswordGeneration, MLHoneywordGenerator
+from utilities.Compressor import Compressor
 import pprint
+import os
+import time
 
 def wait_print():
     time.sleep(2)
@@ -76,10 +79,41 @@ def dte_encode(seed_file):
     with open(seed_file) as seed:                
         print("\x1b[3m\x1b[33m\nMapping message to seed . . . . . .")
         print(f"Messages, seed, and byte values:\n")
+        
+        # LZW -> Huffman Compression and Decompression
+        # Check if a compressed text file already exists. If you want a fresh compression session, ensure both huffman metadata and Compressed text file are deleted.
+        if not os.path.exists("Resources/compressed_wordlist.txt"):
+            # Construct a new compressed text file.
+            with open("Resources/compressed_wordlist.txt", "w") as file:
+                joined_wordlist = " ".join(wordlist)
+                compressor_instance = Compressor()
+                compressed_wordlist, huffman_reverse_codebook = compressor_instance.compress(joined_wordlist)
+                ascii_compressed_wordlist = base64.b64encode(compressed_wordlist).decode("utf-8") # Convert to ASCII String
+                file.write(ascii_compressed_wordlist)
+                
+                # Store Huffman metadata
+                with open("Resources/reverse_codebook.json", "w") as f:
+                    json.dump(huffman_reverse_codebook, f)
+            
+        # Decompress text file
+        with open("Resources/compressed_wordlist.txt", "r") as file:
+            compressor_instance = Compressor()
+            
+            ascii_compressed_wordlist = file.read()
+            # Read Huffman metadata
+            with open("Resources/reverse_codebook.json", "r") as f:
+                reverse_codebook = json.load(f)
+            
+            compressed_wordlist = base64.b64decode(ascii_compressed_wordlist.encode()) # Convert to bytes object
+
+            decompressed_wordlist = compressor_instance.decompress(compressed_wordlist, reverse_codebook) 
+                
         for word in seed:
             word = word.strip()
-            index = wordlist.index(word)
-            chunk_size_bytes = 2 # Must be the same size in DTE encode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the DTE.
+            index = decompressed_wordlist.index(word)
+            print(index)
+
+            chunk_size_bytes = 2 # Must be the same size in DTE encode and decode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the DTE.
             byte_value = int_to_bytes(index, chunk_size_bytes) 
             plaintext.append(byte_value)
             print('Word {} : Index {} : Byte Value: {}'.format(
@@ -95,7 +129,7 @@ def dte_encode(seed_file):
 
 def dte_decode(text):
     words = []
-    chunk_size_bytes = 2 # Must be the same size in DTE encode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the dte.
+    chunk_size_bytes = 2 # Must be the same size in DTE encode and decode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the dte.
     byte_numbers = [text[i:i+chunk_size_bytes] for i in range(0, len(text), chunk_size_bytes)] # creates a list of byte strings (default chunks of 2 bytes) from text. Works as the max index of wordlist (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
     for byte_number in byte_numbers:
         index = int_from_bytes(byte_number) % 2048 # 2048 represents the max index of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
