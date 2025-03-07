@@ -62,7 +62,7 @@ def generateWriteHP(password, salt):
             "sugarword_index": sugarword_index    
         }))
         
-def readHP(password_hash, salt):
+def readHP(password_hash):
     with open("Output/HoneyPasswordList.txt", "r") as read_file:
         data = json.load(read_file)
         honeypasswords = data["honeypasswords"]
@@ -441,7 +441,7 @@ if __name__ == "__main__":
         salt, rbmrsa_parameters, ciphertext = read_ciphertext(args.ciphertext_file)
         key, _ = derive_key(password, salt)
         key = base64.b64encode(key).decode('utf-8') # Encode the Raw Hash binary data into ASCII-safe characters
-        if readHP(key, salt): # If it is a honey Password continue and # print false text, or if Password # print real text.
+        if readHP(key): # If it is a honey Password continue and # print false text, or if Password # print real text.
             dte = decrypt(ciphertext, rbmrsa_parameters, key)
             plaintext = dte_decode(dte)
             write_plaintext(plaintext, args.out_file)
