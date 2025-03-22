@@ -9,6 +9,7 @@ import math
 import bitarray
 import time
 import itertools
+import base64
 
 def wait_print():
     time.sleep(2)
@@ -114,7 +115,7 @@ class Compressor():
     
     def build_huffman_tree(self, freq_table:dict):
         # Initialize
-        print("\x1b[3m\x1b[33m\nConstructing Heap . . . . . .")
+        print("\x1b[3m\x1b[33m\nConstructing Huffman Tree . . . . . .")
         heap = [self.HuffmanNode(symbol, freq) for symbol, freq in freq_table.items()]
         print(f"\nInitial Heap: {heap}")
         heapq.heapify(heap)
@@ -149,16 +150,20 @@ class Compressor():
             reverse_codebook = {}
 
         if node:
-            if node.symbol is not None:  # Leaf node
+            if node.symbol is not None:  # We are at a Leaf node
                 codebook[node.symbol] = prefix
                 reverse_codebook[prefix] = node.symbol  # Store for decoding
             self.build_huffman_codes(node.left, prefix + "0", codebook, reverse_codebook)
-            self.build_huffman_codes(node.right, prefix + "1", codebook, reverse_codebook)
-
+            self.build_huffman_codes(node.right, prefix + "1", codebook, reverse_codebook) 
         return codebook, reverse_codebook
     
     def huffman_encode(self, lzw_compressed_data:list[int], codebook:dict):
+        print("\x1b[3m\x1b[33m\nHuffman Encoding . . . . . .")
+        print(f"LZW Compressed Data: {lzw_compressed_data}")
+        print(f"Codebook: {codebook}")
         self.huffman_encoded_data = "".join(codebook[symbol] for symbol in lzw_compressed_data)
+        print(f"Huffman Encoded Output: {self.huffman_encoded_data}")
+        wait_print()
         return self.huffman_encoded_data # Returns a string containing binary numbers.
     
     def huffman_decode(self, huffman_encoded_data, reverse_codebook):
@@ -189,8 +194,15 @@ class Compressor():
         byte_array = bytearray()
         for i in range(0, len(padded_binary), 8):
             byte_array.append(int(padded_binary[i:i+8], 2))
-
-        return bytes(byte_array)
+    
+        print("\x1b[3m\x1b[33m\nPadding Huffman Output . . . . . .")
+        print(f"Original Binary String: {binary_string}")
+        print(f"Padded Byte Array (hex): {[hex(b) for b in byte_array]}")
+        bytes_huffman_output = bytes(byte_array)
+        print(f"Padded Byte String: {bytes_huffman_output}")
+        print(f"ASCII Encoded Form: {base64.b64encode(bytes_huffman_output).decode('utf-8')}") # Encode the Raw Hash binary data into ASCII-safe characters
+        wait_print()
+        return bytes_huffman_output
     
     def bytes_to_huffman(self, byte_data):
         # Extract padding info from the first byte
@@ -222,8 +234,8 @@ class Compressor():
         freq_table = self.build_frequency_table(lzw_compressed_data)
         
         # Build Huffman Tree
-        huffman_tree = self.build_huffman_tree(freq_table)
-        huffman_codebook, huffman_reverse_codebook = self.build_huffman_codes(huffman_tree)
+        huffman_root_node = self.build_huffman_tree(freq_table)
+        huffman_codebook, huffman_reverse_codebook = self.build_huffman_codes(huffman_root_node)
         
         self.huffman_reverse_codebook = huffman_reverse_codebook
 
@@ -276,8 +288,12 @@ if __name__ == "__main__":
     freq_table = instance.build_frequency_table(lzw_compressed_data)
     
     # Build Huffman Tree
-    huffman_tree = instance.build_huffman_tree(freq_table)
-    huffman_codebook, huffman_reverse_codebook = instance.build_huffman_codes(huffman_tree)
+    huffman_root_node = instance.build_huffman_tree(freq_table)
+    print("\x1b[3m\x1b[33m\nConstructing Codebooks . . . . . .")
+    huffman_codebook, huffman_reverse_codebook = instance.build_huffman_codes(huffman_root_node)
+    print(f"Codebook: {huffman_codebook}")
+    print(f"Reverse Codebook: {huffman_reverse_codebook}")
+    wait_print()
 
     # Huffman Encode the LZW Output
     huffman_compressed_data = instance.huffman_encode(lzw_compressed_data, huffman_codebook)
@@ -316,11 +332,11 @@ if __name__ == "__main__":
     # Printing of Results
     print(f"\nOriginal Size: {original_data_size_bytes} Bytes\n")
     print(f"LZW Compressed Size: {lzw_compressed_data_size_bytes} Bytes")
-    print(f"LZW Encoding Time: {LZW_encoding_time:.5f} Seconds")
-    print(f"LZW Decoding Time: {LZW_decoding_time:.5f} Seconds\n")
+    print(f"LZW Encoding Time: {LZW_encoding_time:.10f} Seconds")
+    print(f"LZW Decoding Time: {LZW_decoding_time:.10f} Seconds\n")
     print(f"Huffman Compressed Size: {huffman_compressed_data_size_bytes} Bytes")
-    print(f"Huffman Encoding Time {huffman_encoding_time:.5f} Seconds")
-    print(f"Huffman Decoding Time {huffman_decoding_time:.5f} Seconds\n")
+    print(f"Huffman Encoding Time {huffman_encoding_time:.10f} Seconds")
+    print(f"Huffman Decoding Time {huffman_decoding_time:.10f} Seconds\n")
     print(f"Compression Ratio: {compression_ratio:.2f}x\n\n")
     
     print(f"Original Text: \n{text}\n\n")
