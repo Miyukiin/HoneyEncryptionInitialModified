@@ -8,6 +8,12 @@ import pprint
 import math
 import bitarray
 import time
+import itertools
+
+def wait_print():
+    time.sleep(2)
+    print("-------------------------------------------------------------- ")
+    print("\n\x1b[0m") # Reset Formatting
 
 class Compressor():
     def __init__(self):
@@ -18,9 +24,12 @@ class Compressor():
         # Reference Section 5.2 Page 34 of Introduction to Data Compression by Blelloch Guy E.
         
         # Initialize dictionary with single character strings
+        print("\x1b[3m\x1b[33m\nLZW compressing text . . . . . .")
+        print(f"Text: {text}")
         dictionary = {chr(i): i for i in range(256)}
+        print(f"Initial Dictionary: {dictionary}\n")
         # Start of the Next Code. Immediately after 0-255 ASCII Codes.
-        next_code = 256        
+        next_code = 256  
         
         w = ""
         lzw_compressed_data:list = []
@@ -38,6 +47,9 @@ class Compressor():
         if w:
             lzw_compressed_data.append(dictionary[w])
 
+        print(f"Final Dictionary: {dictionary}\n")
+        print(f"Output: {lzw_compressed_data}")
+        wait_print()
         return lzw_compressed_data # Returns a List of Integers where instead of characters, they are represented by the integer unique pattern as specified in the dictionary.
 
     def lzw_decode(self, compressed_lzw_data:list[int]):
@@ -68,30 +80,65 @@ class Compressor():
     
     ### HUFFMAN METHODS ###
     class HuffmanNode:
+        counter = itertools.count()  # global class-level counter so that heap remains consistent; when frequencies are the same, they are not arbitrarily chosen when rebuilt.
         def __init__(self, symbol, freq):
             self.symbol = symbol
             self.freq = freq
             self.left = None
             self.right = None
+            self.order = next(Compressor.HuffmanNode.counter)  # unique tiebreaker to becom deterministic when rebuilding tree during iteration process
 
         def __lt__(self, other):
+            if self.freq == other.freq:
+                return self.order < other.order  # break ties by insertion order (deterministic), because comparison by Int and None will yield error.
             return self.freq < other.freq
-    
-    def build_frequency_table(self, data):
-        return Counter(data)
+        
+        def __repr__(self):
+            return f"({self.symbol}:{self.freq})"
+        
+        def print_tree(self, node, indent="", branch="Root"):
+            if node is not None:
+                self.print_tree(node.right, indent + "     ", branch="R──")
+                if node.symbol is not None:
+                    print(f"{indent}{branch} ('{chr(node.symbol)}'/{node.symbol}:{node.freq})")
+                else:
+                    print(f"{indent}{branch} (None:{node.freq})")
+                self.print_tree(node.left, indent + "     ", branch="L──")
+            
+    def build_frequency_table(self, data:list[int]):
+        print("\x1b[3m\x1b[33m\nConstructing Frequency Table . . . . . .")
+        frequency_table = Counter(data) 
+        print(f"\nFrequency Table: {frequency_table}")
+        wait_print()
+        return frequency_table
     
     def build_huffman_tree(self, freq_table:dict):
+        # Initialize
+        print("\x1b[3m\x1b[33m\nConstructing Heap . . . . . .")
         heap = [self.HuffmanNode(symbol, freq) for symbol, freq in freq_table.items()]
+        print(f"\nInitial Heap: {heap}")
         heapq.heapify(heap)
+        print(f"\nHeapified Heap: {heap}")
 
+        # Iterate
         while len(heap) > 1:
+            print(f"\n\nLength of Heap: {len(heap)}")
             left = heapq.heappop(heap)
             right = heapq.heappop(heap)
+            print(f"Left Node: {left}, Right Node: {right}")
             merged = self.HuffmanNode(None, left.freq + right.freq)
+            print(f"Merged: {merged}")
             merged.left = left
             merged.right = right
+            print(f"Merged Left Node: {merged.left}, Merged Right Node: {merged.right}")
             heapq.heappush(heap, merged)
-
+            print(f"New Heap: {heap}")
+            
+        # Terminate
+        print(f"\nHuffman Root Node: {heap[0]}")
+        print("\nHuffman Tree Structure:")
+        heap[0].print_tree(heap[0])
+        wait_print()
         return heap[0]
 
     def build_huffman_codes(self, node:HuffmanNode, prefix="", codebook=None, reverse_codebook=None):
@@ -215,6 +262,7 @@ if __name__ == "__main__":
     instance = Compressor()
     
     text = " ".join(wordlist) 
+    text = "abandon ability"
     
     # LZW Compression of text
     start = time.time()
@@ -280,8 +328,6 @@ if __name__ == "__main__":
     
     print(f"Hexadecimal String Original Text: \n{hex_output}")
     print(f"\n\nHexadecimal String Compressed Text: \n{huffman_compressed_data_bytes}")
-    
-    print(huffman_reverse_codebook.__sizeof__())
 
 
 
