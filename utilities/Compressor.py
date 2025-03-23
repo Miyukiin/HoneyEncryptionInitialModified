@@ -54,7 +54,7 @@ class Compressor():
         return lzw_compressed_data # Returns a List of Integers where instead of characters, they are represented by the integer unique pattern as specified in the dictionary.
 
     def lzw_decode(self, compressed_lzw_data:list[int]):
-            
+        print("\x1b[3m\x1b[33m\nLZW decompressing text . . . . . .")
         # Initialize dictionary with single character strings
         dictionary = {i: chr(i) for i in range(256)}
         # Start of the Next Code. Immediately after 0-255 ASCII Codes.
@@ -75,8 +75,9 @@ class Compressor():
             next_code += 1
             w = entry
         
-        #print(dictionary) # Debugging
-        
+        print(f"Final Dictionary: {dictionary}")
+        print(f"LZW Decompressed Output: {decompressed_data}")
+        wait_print()
         return decompressed_data
     
     ### HUFFMAN METHODS ###
@@ -89,13 +90,13 @@ class Compressor():
             self.right = None
             self.order = next(Compressor.HuffmanNode.counter)  # unique tiebreaker to becom deterministic when rebuilding tree during iteration process
 
-        def __lt__(self, other):
+        def __lt__(self, other): # heap ordering logic
             if self.freq == other.freq:
                 return self.order < other.order  # break ties by insertion order (deterministic), because comparison by Int and None will yield error.
             return self.freq < other.freq
         
         def __repr__(self):
-            return f"({self.symbol}:{self.freq})"
+            return f"({self.symbol}:{self.freq}:{self.order})"
         
         def print_tree(self, node, indent="", branch="Root"):
             if node is not None:
@@ -170,13 +171,16 @@ class Compressor():
         """Decode Huffman-encoded bitstring using the reverse codebook."""
         current_code = ""
         decoded_output = []
-
+        print("\x1b[3m\x1b[33m\nHuffman Decoding . . . . . .")
+        
         for bit in huffman_encoded_data:
             current_code += bit
             if current_code in reverse_codebook:  # Check if a valid symbol
                 decoded_output.append(reverse_codebook[current_code])
                 current_code = ""  # Reset for next symbol
-
+        print(f"Reverse Codebook: {reverse_codebook}")
+        print(f"LZW Compressed Data: {decoded_output}")
+        wait_print()
         return decoded_output  # Returns list of LZW codes
 
     
@@ -196,22 +200,27 @@ class Compressor():
             byte_array.append(int(padded_binary[i:i+8], 2))
     
         print("\x1b[3m\x1b[33m\nPadding Huffman Output . . . . . .")
-        print(f"Original Binary String: {binary_string}")
-        print(f"Padded Byte Array (hex): {[hex(b) for b in byte_array]}")
+        print(f"Huffman Encoded Output: {binary_string}")
+        print(f"Padded Byte Array of Huffman Encoded Output: {[hex(b) for b in byte_array]}")
         bytes_huffman_output = bytes(byte_array)
-        print(f"Padded Byte String: {bytes_huffman_output}")
-        print(f"ASCII Encoded Form: {base64.b64encode(bytes_huffman_output).decode('utf-8')}") # Encode the Raw Hash binary data into ASCII-safe characters
+        print(f"Padded Byte String of Huffman Encoded Output: {bytes_huffman_output}")
+        print(f"Padded Huffman & ASCII Encoded Output: {base64.b64encode(bytes_huffman_output).decode('utf-8')}") # Encode the Raw Hash binary data into ASCII-safe characters
         wait_print()
         return bytes_huffman_output
     
     def bytes_to_huffman(self, byte_data):
+        print("\x1b[3m\x1b[33m\nUnpadding Huffman Output and Converting to Binary string . . . . . .")
+        # print(base64.b64decode("ASCIIDATA HERE")) yields byte data.
         # Extract padding info from the first byte
         padding_length = byte_data[0]  # First byte stores padding length
         
         # Convert the remaining bytes to binary string
-        binary_string = "".join(f"{byte:08b}" for byte in byte_data[1:])  # Skip padding byte
-
+        binary_string = "".join(f"{byte:08b}" for byte in byte_data[1:])  # Skip padding byte, assumes 8 bits per byte chunk.
+        print(f"Padded Byte String of Huffman Encoded Output: {byte_data}")
+        print(f"Padding Length: {padding_length}")
+        print(f"Huffman Encoded Output: {binary_string}")
         # Remove padding
+        wait_print()
         return binary_string[:-padding_length] if padding_length > 0 else binary_string
     
     def lzw_to_bitstream(self, lzw_compressed_data):
@@ -274,7 +283,6 @@ if __name__ == "__main__":
     instance = Compressor()
     
     text = " ".join(wordlist) 
-    text = "abandon ability"
     
     # LZW Compression of text
     start = time.time()
