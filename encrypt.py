@@ -77,8 +77,6 @@ def readHP(password_hash):
 def dte_encode(seed_file):
     plaintext = [] 
     with open(seed_file) as seed:                
-        print("\x1b[3m\x1b[33m\nMapping message to seed . . . . . .")
-        print(f"Messages, seed, and byte values:\n")
         
         # LZW -> Huffman Compression and Decompression
         # Check if a compressed text file already exists. If you want a fresh compression session, ensure both huffman metadata and Compressed text file are deleted.
@@ -107,11 +105,12 @@ def dte_encode(seed_file):
             compressed_wordlist = base64.b64decode(ascii_compressed_wordlist.encode()) # Convert to bytes object
 
             decompressed_wordlist = compressor_instance.decompress(compressed_wordlist, reverse_codebook) 
-                
+        
+        print("\x1b[3m\x1b[33m\nMapping message to seed . . . . . .")
+        print(f"Messages, seed, and byte values:\n")
         for word in seed:
             word = word.strip()
             index = decompressed_wordlist.index(word)
-            print(index)
 
             chunk_size_bytes = 2 # Must be the same size in DTE encode and decode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the DTE.
             byte_value = int_to_bytes(index, chunk_size_bytes) 
