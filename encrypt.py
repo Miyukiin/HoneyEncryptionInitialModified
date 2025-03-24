@@ -206,9 +206,9 @@ def encrypt(dte:bytes):
 
     ################## Debugging ##################
     save_binary_list_initial = binary_list.copy()
-    ################## Debugging ##################
-    
     # print("Before Bitstuffing: ", binary_list[:20])
+    ################## Debugging ##################
+
     bitX = try_bitstuffing.bitstuffX(binary_list)
     bitY = try_bitstuffing.bitstuffY(bitX)
     bitZ = try_bitstuffing.bitstuffZ(bitY)
@@ -243,7 +243,7 @@ def encrypt(dte:bytes):
     print("Chunk Size: ", max_bits)
     print("Ciphertext Byte String: ", ciphertext)
 
-    
+    wait_print()
     rmbrsa_parameters:dict = {"N": N, "e": e, "d": d, "p": p, "q": q, "r": r, "s": s, "PHI": PHI, "honey_keys": honey_keys, "chunk_size": max_bits}
     
     return ciphertext, rmbrsa_parameters
@@ -426,7 +426,7 @@ if __name__ == "__main__":
         if password != password2:
             print("Passwords did not match")
         else:
-            _, salt = derive_key("password")
+            _, salt = derive_key(password)
             generateWriteHP(password, salt) # Write and generate honey passwords with the real password inside.
             dte = dte_encode(args.seed_file)
             ciphertext, rbmrsa_parameters = encrypt(dte)
