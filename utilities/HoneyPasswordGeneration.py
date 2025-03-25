@@ -23,7 +23,7 @@ class MLHoneywordGenerator:
         """
         Initialize the Honeyword Generator with parameters.
         """
-        self.threshold_damerau_levenshtein:int = 3
+        self.threshold_damerau_levenshtein:int = 2
         self.num_of_honeywords:int = 5 # How many honeywords to be generated? E.g 5 honeywords -> 4 sweet words, 1 sugar word.
         self.password_list:list[str] = password_list
         self.embedding_dim = embedding_dim
