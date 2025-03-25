@@ -5,7 +5,6 @@
 import argparse
 import base64
 import json
-from random import Random
 import argon2
 from Crypto import Random
 from Resources.wordlist import wordlist
@@ -127,12 +126,25 @@ def dte_encode(seed_file):
     return  b"".join(plaintext)
 
 def dte_decode(text):
+    # Decompress text file
+    with open("Resources/compressed_wordlist.txt", "r") as file:
+        compressor_instance = Compressor()
+        
+        ascii_compressed_wordlist = file.read()
+        # Read Huffman metadata
+        with open("Resources/reverse_codebook.json", "r") as f:
+            reverse_codebook = json.load(f)
+        
+        compressed_wordlist = base64.b64decode(ascii_compressed_wordlist.encode()) # Convert to bytes object
+
+        decompressed_wordlist = compressor_instance.decompress(compressed_wordlist, reverse_codebook) 
+            
     words = []
     chunk_size_bytes = 2 # Must be the same size in DTE encode and decode. Note that 2^chunk_size_bytes must be able to accommodate the largest seed integer in the dte.
     byte_numbers = [text[i:i+chunk_size_bytes] for i in range(0, len(text), chunk_size_bytes)] # creates a list of byte strings (default chunks of 2 bytes) from text. Works as the max index of wordlist (2048) cannot be longer than two bytes. 2 bytes can only accommodate up to 2^(16bits) or 65535
     for byte_number in byte_numbers:
         index = int_from_bytes(byte_number) % 2048 # 2048 represents the max index of the BIP-39 wordlist. Not necessary, only used to prevent out of range errors, index < or > wordlist.length
-        words.append(wordlist[index]) 
+        words.append(decompressed_wordlist[index]) 
     return words
 
 # Encrypt Message using RMBRSA - Debugged and Verified
