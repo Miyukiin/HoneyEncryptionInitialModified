@@ -55,7 +55,7 @@ def dte_encode(seed_file):
         print(f"Messages, seed, and byte values:\n")
         for word in seed:
             word = word.strip()
-            index = wordlist.index(word)
+            index = wordlist.index(word) 
             byte_value = int_to_bytes(index, 2) 
             plaintext.append(byte_value)
             print('Word {} : Index {} : Byte Value: {}'.format(

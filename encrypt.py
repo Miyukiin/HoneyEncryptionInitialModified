@@ -149,14 +149,14 @@ def dte_decode(text):
 
 # Encrypt Message using RMBRSA - Debugged and Verified
 def encrypt(dte:bytes):
-    bit_input = 16  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertext. file
+    bit_input = 64  # Bit length of RBMRSA. Adjust this as per bit length conventions. (256,512,1024,2048 etc.). Affects ciphertext, d length etc. See ciphertext. file
     bits = try_generating_keys.compute_bit(bit_input) # We just floor divide the bits by 4 - among the four prime numbers
 
-    #p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
-    #N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
+    p, q, r, s = try_generating_keys.generating_keys(bits) # We produce 4 random-bit prime numbers with the divided bit length
+    N, PHI, e = try_generating_keys.computation_keys(p, q, r, s)
     ### Testing only, Consistent Values for consistent output ###
-    p, q, r, s = 179, 139, 227, 137
-    N, PHI, e = 773774219, 754999104, 53131
+    #p, q, r, s = 179, 139, 227, 137
+    #N, PHI, e = 773774219, 754999104, 53131
     ### Test End ###
     y, x = try_eea_mod.gcd_checker(e, PHI)
     d = try_eea_mod.generating_d(x, y, e, PHI) # We compute for the private key.
